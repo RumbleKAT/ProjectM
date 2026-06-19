@@ -249,6 +249,15 @@ const router = createBrowserRouter([
         },
       },
       {
+        path: "/settings/developer-api",
+        lazy: async () => {
+          const { default: DeveloperApi } = await import(
+            "@/pages/Admin/DeveloperApi"
+          );
+          return { element: <AdminRoute Component={DeveloperApi} /> };
+        },
+      },
+      {
         path: "/settings/model-routers",
         lazy: async () => {
           const { default: ModelRouters } = await import(

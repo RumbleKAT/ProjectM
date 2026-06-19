@@ -1547,6 +1547,62 @@ function systemEndpoints(app) {
       }
     }
   );
+  app.post(
+    "/system/proxy-request",
+    [validatedRequest, flexUserRoleValid([ROLES.admin])],
+    async (request, response) => {
+      try {
+        const { method, url, headers: reqHeaders, body } = reqBody(request);
+        if (!url) {
+          response.status(400).json({ error: "URL is required." });
+          return;
+        }
+
+        const fetchOptions = {
+          method: method || "GET",
+          headers: { ...(reqHeaders || {}) },
+        };
+
+        if (body) {
+          fetchOptions.body = JSON.stringify(body);
+          if (!fetchOptions.headers["Content-Type"]) {
+            fetchOptions.headers["Content-Type"] = "application/json";
+          }
+        }
+
+        const externalResponse = await fetch(url, fetchOptions);
+        const responseBody = await externalResponse.text();
+
+        let parsedBody;
+        try {
+          parsedBody = JSON.parse(responseBody);
+        } catch {
+          parsedBody = responseBody;
+        }
+
+        const responseHeaders = {};
+        externalResponse.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+
+        response.status(200).json({
+          status: externalResponse.status,
+          statusText: externalResponse.statusText,
+          headers: responseHeaders,
+          body: parsedBody,
+        });
+      } catch (error) {
+        console.error("Proxy request error:", error);
+        response.status(200).json({
+          status: 0,
+          statusText: "Request Failed",
+          headers: {},
+          body: null,
+          error: error.message,
+        });
+      }
+    }
+  );
 }
 
 module.exports = { systemEndpoints };

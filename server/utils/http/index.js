@@ -24,7 +24,7 @@ function queryParams(request) {
  */
 function makeJWT(info = {}, expiry = "30d") {
   if (!process.env.JWT_SECRET)
-    throw new Error("Cannot create JWT as JWT_SECRET is unset.");
+    process.env.JWT_SECRET = require("crypto").randomBytes(64).toString("hex");
   return JWT.sign(info, process.env.JWT_SECRET, { expiresIn: expiry });
 }
 

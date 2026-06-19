@@ -181,6 +181,9 @@ export default {
     experimental: () => {
       return `/settings/beta-features`;
     },
+    developerApi: () => {
+      return "/settings/developer-api";
+    },
     mobileConnections: () => {
       return `/settings/mobile-connections`;
     },

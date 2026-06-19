@@ -893,6 +893,16 @@ const System = {
     agentPlugins: AgentPlugins,
   },
   promptVariables: SystemPromptVariable,
+
+  proxyRequest: async function ({ method, url, headers, body }) {
+    return fetch(`${API_BASE}/system/proxy-request`, {
+      method: "POST",
+      headers: baseHeaders(),
+      body: JSON.stringify({ method, url, headers, body }),
+    })
+      .then((res) => res.json())
+      .catch((e) => ({ status: 0, error: e.message }));
+  },
 };
 
 export default System;

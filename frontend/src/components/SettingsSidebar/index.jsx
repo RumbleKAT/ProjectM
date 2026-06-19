@@ -375,6 +375,12 @@ const SidebarOptions = ({ user = null, t }) => (
               flex: true,
               roles: ["admin"],
             },
+            {
+              btnText: "Developer Playground",
+              href: paths.settings.developerApi(),
+              flex: true,
+              roles: ["admin"],
+            },
           ]}
         />
         <Option

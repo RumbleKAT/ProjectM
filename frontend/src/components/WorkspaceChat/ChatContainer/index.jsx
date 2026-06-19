@@ -52,6 +52,7 @@ export default function ChatContainer({
   const { chatHistoryRef } = useChatContainerQuickScroll();
   const pendingMessageChecked = useRef(false);
   const pendingResetRef = useRef(false);
+  const pendingWsMessagesRef = useRef([]);
   const activeThreadSlug = threadSlug;
 
   const isEmpty =
@@ -303,20 +304,22 @@ export default function ChatContainer({
         if (!promptMessage || !promptMessage?.userMessage) return false;
         const attachments = promptMessage?.attachments ?? parseAttachments();
         window.dispatchEvent(new CustomEvent(CLEAR_ATTACHMENTS_EVENT));
-        websocket.send(
-          JSON.stringify({
-            type: "awaitingFeedback",
-            feedback: promptMessage?.userMessage,
-            attachments,
-          })
-        );
+        const payload = JSON.stringify({
+          type: "awaitingFeedback",
+          feedback: promptMessage?.userMessage,
+          attachments,
+        });
+        if (websocket.readyState === WebSocket.OPEN) {
+          websocket.send(payload);
+          if (promptMessage.userMessage.trim() !== "/reset") return;
+          pendingResetRef.current = true;
+          return;
+        }
 
-        // /reset during an active agent session should end the session AND
-        // clear the chat in a single action. The send above triggers the
-        // server to abort the agent and close the socket; fall through to the
-        // /reset flow below which resets memory + clears chat history.
-        if (promptMessage.userMessage.trim() !== "/reset") return;
-        pendingResetRef.current = true;
+        if (websocket.readyState === WebSocket.CONNECTING) {
+          pendingWsMessagesRef.current.push(payload);
+          return;
+        }
       }
 
       if (!promptMessage || !promptMessage?.userMessage) return false;
@@ -377,6 +380,13 @@ export default function ChatContainer({
           setLoadingResponse(false);
         });
 
+        socket.addEventListener("open", () => {
+          const pending = pendingWsMessagesRef.current;
+          pendingWsMessagesRef.current = [];
+          for (const msg of pending) {
+            socket.send(msg);
+          }
+        });
         socket.addEventListener("close", (_event) => {
           setAgentSessionActive(false);
           window.dispatchEvent(new CustomEvent(AGENT_SESSION_END));

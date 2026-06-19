@@ -110,6 +110,7 @@ export default function PromptInput({
   function saveCurrentState(adjustment = 0) {
     if (undoStack.current.length >= MAX_EDIT_STACK_SIZE)
       undoStack.current.shift();
+    if (!textareaRef.current) return;
     undoStack.current.push({
       value: promptInput,
       cursorPositionStart: textareaRef.current.selectionStart + adjustment,

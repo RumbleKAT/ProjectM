@@ -428,23 +428,21 @@ const System = {
       localStorage.getItem("theme") || "default"
     );
 
-    return await fetch(url, {
-      method: "GET",
-      cache: "no-cache",
-    })
-      .then(async (res) => {
-        if (res.ok && res.status !== 204) {
-          const isCustomLogo = res.headers.get("X-Is-Custom-Logo") === "true";
-          const blob = await res.blob();
-          const logoURL = URL.createObjectURL(blob);
-          return { isCustomLogo, logoURL };
-        }
-        throw new Error("Failed to fetch logo!");
-      })
-      .catch((e) => {
-        console.log(e);
-        return { isCustomLogo: false, logoURL: null };
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        cache: "no-cache",
       });
+      if (res.ok && res.status !== 204) {
+        const isCustomLogo = res.headers.get("X-Is-Custom-Logo") === "true";
+        const blob = await res.blob();
+        const logoURL = URL.createObjectURL(blob);
+        return { isCustomLogo, logoURL };
+      }
+      return { isCustomLogo: false, logoURL: null };
+    } catch (e) {
+      return { isCustomLogo: false, logoURL: null };
+    }
   },
   fetchPfp: async function (id) {
     return await fetch(`${API_BASE}/system/pfp/${id}`, {

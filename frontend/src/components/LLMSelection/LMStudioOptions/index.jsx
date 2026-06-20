@@ -25,6 +25,7 @@ export default function LMStudioOptions({ settings, showAlert = false }) {
   } = useProviderEndpointAutoDiscovery({
     provider: "lmstudio",
     initialBasePath: settings?.LMStudioBasePath,
+    initialAuthToken: settings?.LMStudioAuthToken,
     ENDPOINTS: LMSTUDIO_COMMON_URLS,
   });
 
@@ -128,7 +129,7 @@ export default function LMStudioOptions({ settings, showAlert = false }) {
               name="LMStudioBasePath"
               className="border-none bg-theme-settings-input-bg text-white placeholder:text-theme-settings-input-placeholder text-sm rounded-lg focus:outline-primary-button active:outline-primary-button outline-none block w-full p-2.5"
               placeholder="http://localhost:1234/v1"
-              value={basePathValue.value}
+              value={basePathValue.value || ""}
               required={true}
               autoComplete="off"
               spellCheck={false}
@@ -209,8 +210,7 @@ export default function LMStudioOptions({ settings, showAlert = false }) {
               name="LMStudioAuthToken"
               className="border-none bg-theme-settings-input-bg text-white placeholder:text-theme-settings-input-placeholder text-sm rounded-lg outline-none block w-full p-2.5 focus:outline-primary-button active:outline-primary-button"
               placeholder="LM Studio Auth Token"
-              defaultValue={settings?.LMStudioAuthToken ? "*".repeat(20) : ""}
-              value={authTokenValue.value}
+              value={authTokenValue.value || ""}
               onChange={authToken.onChange}
               onBlur={authToken.onBlur}
               required={false}

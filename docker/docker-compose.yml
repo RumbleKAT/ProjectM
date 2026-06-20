@@ -21,6 +21,7 @@ services:
     entrypoint: ["opencode", "serve", "--hostname=0.0.0.0", "--port=4096"]
     volumes:
       - opencode-data:/root/.local/share/opencode
+      - ../:/projects
     networks:
       - anything-llm
     healthcheck:

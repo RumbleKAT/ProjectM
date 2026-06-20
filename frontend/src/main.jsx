@@ -72,6 +72,15 @@ const router = createBrowserRouter([
         },
       },
       {
+        path: "/settings/opencode",
+        lazy: async () => {
+          const { default: GeneralOpencode } = await import(
+            "@/pages/GeneralSettings/Opencode"
+          );
+          return { element: <AdminRoute Component={GeneralOpencode} /> };
+        },
+      },
+      {
         path: "/settings/transcription-preference",
         lazy: async () => {
           const { default: GeneralTranscriptionPreference } = await import(

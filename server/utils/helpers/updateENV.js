@@ -1310,7 +1310,7 @@ async function updateENV(newENVs = {}, force = false, userId = null) {
     await runAfterAllFunc(newValues, userId);
 
   await logChangesToEventLog(newValues, userId);
-  if (process.env.NODE_ENV === "production") dumpENV();
+  dumpENV();
   return { newValues, error: error?.length > 0 ? error : false };
 }
 
@@ -1440,7 +1440,9 @@ function dumpENV() {
     .map(([key, value]) => `${key}='${sanitizeValue(value)}'`)
     .join("\n");
 
-  const envPath = path.join(__dirname, "../../.env");
+  const envFile =
+    process.env.NODE_ENV === "development" ? ".env.development" : ".env";
+  const envPath = path.join(__dirname, `../../${envFile}`);
   fs.writeFileSync(envPath, envResult, { encoding: "utf8", flag: "w" });
   return true;
 }

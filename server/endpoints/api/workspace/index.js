@@ -106,6 +106,151 @@ function apiWorkspaceEndpoints(app) {
     }
   });
 
+  app.post(
+    "/v1/workspace/chat-auto",
+    [validApiKey],
+    async (request, response) => {
+      try {
+        const {
+          workspaceName,
+          message,
+          mode = null,
+          sessionId = null,
+          attachments = [],
+          reset = false,
+          stream = false,
+        } = reqBody(request);
+
+        if (!workspaceName || workspaceName.trim().length === 0) {
+          response.status(400).json({
+            id: uuidv4(),
+            type: "abort",
+            textResponse: null,
+            sources: [],
+            close: true,
+            error: "workspaceName is required and cannot be empty.",
+          });
+          return;
+        }
+
+        if (!message || message.trim().length === 0) {
+          response.status(400).json({
+            id: uuidv4(),
+            type: "abort",
+            textResponse: null,
+            sources: [],
+            close: true,
+            error: "Message is required and cannot be empty.",
+          });
+          return;
+        }
+
+        // Dynamically create a new workspace using the provided name
+        const { workspace, message: errorMsg } = await Workspace.new(
+          workspaceName,
+          null
+        );
+        if (!workspace) {
+          response.status(500).json({
+            id: uuidv4(),
+            type: "abort",
+            textResponse: null,
+            sources: [],
+            close: true,
+            error: `Failed to create workspace: ${errorMsg}`,
+          });
+          return;
+        }
+
+        const resolvedMode = mode ?? workspace.chatMode;
+
+        if (stream) {
+          response.setHeader("Cache-Control", "no-cache");
+          response.setHeader("Content-Type", "text/event-stream");
+          response.setHeader("Access-Control-Allow-Origin", "*");
+          response.setHeader("Connection", "keep-alive");
+          response.flushHeaders();
+
+          // Write a custom event to notify client of the dynamically created workspace info
+          writeResponseChunk(response, {
+            type: "workspace_created",
+            workspace: {
+              slug: workspace.slug,
+              name: workspace.name,
+            },
+          });
+
+          await ApiChatHandler.streamChat({
+            response,
+            workspace,
+            message,
+            mode: resolvedMode,
+            user: null,
+            thread: null,
+            sessionId: !!sessionId ? String(sessionId) : null,
+            attachments,
+            reset,
+          });
+
+          await Telemetry.sendTelemetry("sent_chat", {
+            LLMSelection:
+              workspace.chatProvider ?? process.env.LLM_PROVIDER ?? "openai",
+            Embedder: process.env.EMBEDDING_ENGINE || "inherit",
+            VectorDbSelection: process.env.VECTOR_DB || "lancedb",
+            TTSSelection: process.env.TTS_PROVIDER || "native",
+          });
+          await EventLogs.logEvent("api_sent_chat", {
+            workspaceName: workspace?.name,
+            chatModel: workspace?.chatModel || "System Default",
+          });
+          response.end();
+        } else {
+          const result = await ApiChatHandler.chatSync({
+            workspace,
+            message,
+            mode: resolvedMode,
+            user: null,
+            thread: null,
+            sessionId: !!sessionId ? String(sessionId) : null,
+            attachments,
+            reset,
+          });
+
+          await Telemetry.sendTelemetry("sent_chat", {
+            LLMSelection:
+              workspace.chatProvider ?? process.env.LLM_PROVIDER ?? "openai",
+            Embedder: process.env.EMBEDDING_ENGINE || "inherit",
+            VectorDbSelection: process.env.VECTOR_DB || "lancedb",
+            TTSSelection: process.env.TTS_PROVIDER || "native",
+          });
+          await EventLogs.logEvent("api_sent_chat", {
+            workspaceName: workspace?.name,
+            chatModel: workspace?.chatModel || "System Default",
+          });
+
+          return response.status(200).json({
+            success: true,
+            workspace: {
+              slug: workspace.slug,
+              name: workspace.name,
+            },
+            chatResult: result,
+          });
+        }
+      } catch (e) {
+        console.error(e.message, e);
+        response.status(500).json({
+          id: uuidv4(),
+          type: "abort",
+          textResponse: null,
+          sources: [],
+          close: true,
+          error: e.message,
+        });
+      }
+    }
+  );
+
   app.get("/v1/workspaces", [validApiKey], async (request, response) => {
     /*
     #swagger.tags = ['Workspaces']

@@ -119,6 +119,9 @@ export default {
     llmPreference: () => {
       return "/settings/llm-preference";
     },
+    opencode: () => {
+      return "/settings/opencode";
+    },
     transcriptionPreference: () => {
       return "/settings/transcription-preference";
     },

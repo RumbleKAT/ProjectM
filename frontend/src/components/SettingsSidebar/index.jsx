@@ -222,6 +222,12 @@ const SidebarOptions = ({ user = null, t }) => (
               roles: ["admin"],
             },
             {
+              btnText: "OpenCode Agent",
+              href: paths.settings.opencode(),
+              flex: true,
+              roles: ["admin"],
+            },
+            {
               btnText: t("settings.vector-database"),
               href: paths.settings.vectorDatabase(),
               flex: true,

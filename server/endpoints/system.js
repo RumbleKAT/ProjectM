@@ -1,6 +1,9 @@
-process.env.NODE_ENV === "development"
-  ? require("dotenv").config({ path: `.env.${process.env.NODE_ENV}` })
-  : require("dotenv").config();
+const path = require("path");
+const envFile =
+  process.env.NODE_ENV === "development"
+    ? `.env.${process.env.NODE_ENV}`
+    : ".env";
+require("dotenv").config({ path: path.join(__dirname, `../${envFile}`) });
 const { viewLocalFiles, normalizePath, isWithin } = require("../utils/files");
 const { purgeDocument, purgeFolder } = require("../utils/files/purgeDocument");
 const { getVectorDbClass } = require("../utils/helpers");
@@ -22,7 +25,6 @@ const { SystemSettings } = require("../models/systemSettings");
 const { User } = require("../models/user");
 const { validatedRequest } = require("../utils/middleware/validatedRequest");
 const fs = require("fs");
-const path = require("path");
 const {
   getDefaultFilename,
   determineLogoFilepath,

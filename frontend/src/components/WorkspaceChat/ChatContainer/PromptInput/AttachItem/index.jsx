@@ -1,15 +1,17 @@
 import { Plus } from "@phosphor-icons/react";
 import { Tooltip } from "react-tooltip";
 import { useTranslation } from "react-i18next";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useContext } from "react";
 import { useParams } from "react-router-dom";
 import Workspace from "@/models/workspace";
 import {
   ATTACHMENTS_PROCESSED_EVENT,
   REMOVE_ATTACHMENT_EVENT,
+  DndUploaderContext,
 } from "../../DnDWrapper";
 import { useTheme } from "@/hooks/useTheme";
 import ParsedFilesMenu from "./ParsedFilesMenu";
+import showToast from "@/utils/toast";
 
 /**
  * This is a simple proxy component that clicks on the DnD file uploader for the user.
@@ -21,6 +23,7 @@ export default function AttachItem({
 }) {
   const { t } = useTranslation();
   const { theme } = useTheme();
+  const { ready } = useContext(DndUploaderContext);
   const params = useParams();
   const slug = workspaceSlug || params.slug;
   const threadSlug = workspaceThreadSlug ?? params.threadSlug ?? null;
@@ -67,6 +70,10 @@ export default function AttachItem({
    */
   function handleClick(e) {
     e?.target?.blur();
+    if (!ready) {
+      showToast(t("connectors.upload.processor-offline"), "error");
+      return;
+    }
     document?.getElementById("dnd-chat-file-uploader")?.click();
     return;
   }

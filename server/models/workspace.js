@@ -192,14 +192,21 @@ const Workspace = {
    * @returns {Promise<{workspace: Object | null, message: string | null}>} A promise that resolves to an object containing the created workspace and an error message if applicable.
    */
   new: async function (name = null, creatorId = null, additionalFields = {}) {
-    if (!name) return { workspace: null, message: "name cannot be null" };
     var slug = this.slugify(name, { lower: true });
     slug = slug || uuidv4();
+    if (additionalFields.isTemp && !slug.startsWith("temp-")) {
+      slug = `temp-${slug}`;
+    }
 
     const existingBySlug = await this.get({ slug });
     if (existingBySlug !== null) {
       const slugSeed = Math.floor(10000000 + Math.random() * 90000000);
-      slug = this.slugify(`${name}-${slugSeed}`, { lower: true });
+      slug = this.slugify(
+        additionalFields.isTemp
+          ? `temp-${name}-${slugSeed}`
+          : `${name}-${slugSeed}`,
+        { lower: true }
+      );
     }
 
     // Get the default system prompt

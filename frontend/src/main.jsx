@@ -5,7 +5,6 @@ import App from "@/App.jsx";
 import PrivateRoute, {
   AdminRoute,
   ManagerRoute,
-  SingleUserRoute,
 } from "@/components/PrivateRoute";
 import Login from "@/pages/Login";
 import SimpleSSOPassthrough from "@/pages/Login/SSO/simple";
@@ -264,6 +263,13 @@ const router = createBrowserRouter([
             "@/pages/Admin/DeveloperApi"
           );
           return { element: <AdminRoute Component={DeveloperApi} /> };
+        },
+      },
+      {
+        path: "/settings/budget",
+        lazy: async () => {
+          const { default: AdminBudget } = await import("@/pages/Admin/Budget");
+          return { element: <AdminRoute Component={AdminBudget} /> };
         },
       },
       {

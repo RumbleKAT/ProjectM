@@ -139,20 +139,40 @@ export default function DeveloperApi() {
       "claude-3-sonnet-20240229",
       "claude-3-haiku-20240307",
     ],
-    gemini: ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro", "gemini-1.5-flash"],
+    gemini: [
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-lite",
+      "gemini-1.5-pro",
+      "gemini-1.5-flash",
+    ],
     ollama: ["llama3.2", "llama3.1", "mistral", "codellama", "mixtral"],
     togetherai: [
       "mistralai/Mixtral-8x7B-Instruct-v0.1",
       "mistralai/Mistral-7B-Instruct-v0.2",
     ],
-    groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+    groq: [
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "mixtral-8x7b-32768",
+    ],
     deepseek: ["deepseek-chat", "deepseek-reasoner"],
-    mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"],
+    mistral: [
+      "mistral-large-latest",
+      "mistral-medium-latest",
+      "mistral-small-latest",
+    ],
     perplexity: ["sonar-pro", "sonar", "codellama-70b"],
-    openrouter: ["openai/gpt-4o", "anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash"],
+    openrouter: [
+      "openai/gpt-4o",
+      "anthropic/claude-3.5-sonnet",
+      "google/gemini-2.0-flash",
+    ],
     xai: ["grok-beta", "grok-2"],
     cohere: ["command-r-plus", "command-r", "command"],
-    novita: ["mistralai/mixtral-8x22b-instruct", "meta-llama/llama-3.1-8b-instruct"],
+    novita: [
+      "mistralai/mixtral-8x22b-instruct",
+      "meta-llama/llama-3.1-8b-instruct",
+    ],
   };
 
   async function updateWorkspaceLlm(provider, model) {
@@ -162,7 +182,10 @@ export default function DeveloperApi() {
       const res = await fetch(`/api/workspace/${selectedSlug}/update`, {
         method: "POST",
         headers: { ...baseHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ chatProvider: provider, chatModel: model || null }),
+        body: JSON.stringify({
+          chatProvider: provider,
+          chatModel: model || null,
+        }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setWorkspaceLlm(provider);
@@ -185,7 +208,9 @@ export default function DeveloperApi() {
     if (!selectedSlug) return;
     Workspace.bySlug(selectedSlug).then((ws) => {
       if (ws) {
-        setWorkspaceLlm(ws.chatProvider || ws.llmProvider || ws.LLMProvider || "");
+        setWorkspaceLlm(
+          ws.chatProvider || ws.llmProvider || ws.LLMProvider || ""
+        );
         setWorkspaceModel(ws.chatModel || ws.llmModel || "");
       }
     });
@@ -240,7 +265,11 @@ export default function DeveloperApi() {
         .filter((h) => h.key.trim())
         .reduce((acc, h) => ({ ...acc, [h.key]: h.value }), {});
 
-      if (!headerObj["Content-Type"] && ["POST", "PUT", "PATCH"].includes(method) && body.trim()) {
+      if (
+        !headerObj["Content-Type"] &&
+        ["POST", "PUT", "PATCH"].includes(method) &&
+        body.trim()
+      ) {
         headerObj["Content-Type"] = contentType;
       }
 
@@ -286,25 +315,25 @@ export default function DeveloperApi() {
       } else {
         const rawText = await res.text();
 
-      let parsedBody;
-      try {
-        parsedBody = JSON.parse(rawText);
-      } catch {
-        parsedBody = rawText;
-      }
+        let parsedBody;
+        try {
+          parsedBody = JSON.parse(rawText);
+        } catch {
+          parsedBody = rawText;
+        }
 
-      const resHeaders = {};
-      res.headers.forEach((value, key) => {
-        resHeaders[key] = value;
-      });
+        const resHeaders = {};
+        res.headers.forEach((value, key) => {
+          resHeaders[key] = value;
+        });
 
-      setRawResponse(rawText);
-      setResponse({
-        status: res.status,
-        statusText: res.statusText,
-        headers: resHeaders,
-        body: parsedBody,
-      });
+        setRawResponse(rawText);
+        setResponse({
+          status: res.status,
+          statusText: res.statusText,
+          headers: resHeaders,
+          body: parsedBody,
+        });
       }
     } catch (e) {
       setError(e.message);
@@ -322,9 +351,7 @@ export default function DeveloperApi() {
   }, []);
 
   function useApiKey(secret) {
-    const next = headers.filter(
-      (h) => h.key.toLowerCase() !== "authorization"
-    );
+    const next = headers.filter((h) => h.key.toLowerCase() !== "authorization");
     next.push({ key: "Authorization", value: `Bearer ${secret}` });
     setHeaders(next);
   }
@@ -352,7 +379,8 @@ export default function DeveloperApi() {
             </div>
             <p className="text-xs leading-[18px] font-base text-theme-text-secondary">
               Test any AnythingLLM API endpoint with full control over method,
-              headers, and body. Select a preset below or craft your own request.
+              headers, and body. Select a preset below or craft your own
+              request.
             </p>
           </div>
 
@@ -424,9 +452,7 @@ export default function DeveloperApi() {
                       className="flex items-center gap-x-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded text-xs border border-zinc-700"
                       title="Click to set as Authorization header"
                     >
-                      <span className="font-mono">
-                        {maskKey(key.secret)}
-                      </span>
+                      <span className="font-mono">{maskKey(key.secret)}</span>
                       {key.label && (
                         <span className="text-theme-text-secondary">
                           ({key.label})
@@ -540,7 +566,7 @@ export default function DeveloperApi() {
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                placeholder={"{ \"message\": \"Hello\", \"mode\": \"chat\" }"}
+                placeholder={'{ "message": "Hello", "mode": "chat" }'}
                 rows={5}
                 className="w-full px-3 py-2 bg-zinc-800 text-white rounded text-sm border border-zinc-700 font-mono resize-y"
               />

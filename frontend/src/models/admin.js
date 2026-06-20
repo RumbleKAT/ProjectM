@@ -233,6 +233,43 @@ const Admin = {
         return false;
       });
   },
+
+  getBudget: async function () {
+    return fetch(`${API_BASE}/admin/budget`, {
+      method: "GET",
+      headers: baseHeaders(),
+    })
+      .then((res) => res.json())
+      .catch((e) => {
+        console.error(e);
+        return { success: false, error: e.message };
+      });
+  },
+
+  updateBudgetLimit: async function (limit) {
+    return fetch(`${API_BASE}/admin/budget/settings`, {
+      method: "POST",
+      headers: baseHeaders(),
+      body: JSON.stringify({ limit }),
+    })
+      .then((res) => res.json())
+      .catch((e) => {
+        console.error(e);
+        return { success: false, error: e.message };
+      });
+  },
+
+  resetBudget: async function () {
+    return fetch(`${API_BASE}/admin/budget/reset`, {
+      method: "POST",
+      headers: baseHeaders(),
+    })
+      .then((res) => res.json())
+      .catch((e) => {
+        console.error(e);
+        return { success: false, error: e.message };
+      });
+  },
 };
 
 export default Admin;

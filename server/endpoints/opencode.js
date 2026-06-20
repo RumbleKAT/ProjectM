@@ -140,7 +140,8 @@ function opencodeEndpoints(app) {
       try {
         const {
           prompt,
-          serverUrl = process.env.OPENCODE_SERVER_URL || "http://localhost:4096",
+          serverUrl = process.env.OPENCODE_SERVER_URL ||
+            "http://localhost:4096",
           model,
         } = reqBody(request);
         if (!prompt || prompt.trim().length === 0) {
@@ -202,9 +203,10 @@ function opencodeEndpoints(app) {
         let modelParam = null;
         if (model) {
           const parts = model.split("/");
-          modelParam = parts.length === 2
-            ? { providerID: parts[0], modelID: parts[1] }
-            : { providerID: config.provider, modelID: model };
+          modelParam =
+            parts.length === 2
+              ? { providerID: parts[0], modelID: parts[1] }
+              : { providerID: config.provider, modelID: model };
         } else if (config.model) {
           modelParam = { providerID: config.provider, modelID: config.model };
         } else {
@@ -222,7 +224,11 @@ function opencodeEndpoints(app) {
         });
 
         if (result.error) {
-          throw new Error(result.error.data?.message || result.error.message || "Unknown error");
+          throw new Error(
+            result.error.data?.message ||
+              result.error.message ||
+              "Unknown error"
+          );
         }
 
         if (!result.data) {
@@ -381,8 +387,9 @@ function opencodeEndpoints(app) {
             .json({ success: false, error: "API key is required." });
         }
 
-        const { globalPath, projectPath } = getConfigFilePaths();
-        const targetPath = type === "global" ? globalPath : projectPath;
+        // Use a dedicated MCP config file instead of opencode.json
+        const mcpConfigPath = path.resolve(__dirname, "../../mcp-config.json");
+        const targetPath = mcpConfigPath;
 
         // Ensure directories exist
         const targetDir = path.dirname(targetPath);
@@ -415,7 +422,8 @@ function opencodeEndpoints(app) {
         );
 
         // Also dynamically register with the running OpenCode server
-        const opencodeUrl = process.env.OPENCODE_SERVER_URL || "http://localhost:4096";
+        const opencodeUrl =
+          process.env.OPENCODE_SERVER_URL || "http://localhost:4096";
         let liveRegistered = false;
         try {
           const mcpRes = await fetch(`${opencodeUrl}/mcp`, {
@@ -456,17 +464,23 @@ function opencodeEndpoints(app) {
     [validatedRequest, flexUserRoleValid([ROLES.all])],
     async (request, response) => {
       try {
-        const opencodeUrl = process.env.OPENCODE_SERVER_URL || "http://localhost:4096";
+        const opencodeUrl =
+          process.env.OPENCODE_SERVER_URL || "http://localhost:4096";
         const res = await fetch(`${opencodeUrl}/mcp`, {
           headers: { "Content-Type": "application/json" },
         });
         if (!res.ok) {
-          return response.status(res.status).json({ success: false, error: `OpenCode server returned ${res.status}` });
+          return response.status(res.status).json({
+            success: false,
+            error: `OpenCode server returned ${res.status}`,
+          });
         }
         const data = await res.json();
         response.status(200).json({ success: true, mcpStatus: data });
       } catch (e) {
-        response.status(200).json({ success: false, error: e.message, mcpStatus: null });
+        response
+          .status(200)
+          .json({ success: false, error: e.message, mcpStatus: null });
       }
     }
   );

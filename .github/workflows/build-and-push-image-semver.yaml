@@ -12,6 +12,7 @@ jobs:
   push_multi_platform_to_registries:
     name: Push Docker multi-platform image to multiple registries
     runs-on: ubuntu-22.04-arm
+    environment: DOCKER_HUB
     permissions:
       packages: write
       contents: read

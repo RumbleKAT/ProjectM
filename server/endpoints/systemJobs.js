@@ -4,7 +4,9 @@ const { validatedRequest } = require("../utils/middleware/validatedRequest");
 const { flexUserRoleValid } = require("../utils/middleware/multiUserProtected");
 const { ROLES } = require("../utils/middleware/multiUserProtected");
 const registry = require("../systemJobs/registry");
-const { buildCleanupInactiveChatThreadsDefinition } = require("../systemJobs/definitions/cleanupInactiveChatThreads");
+const {
+  buildCleanupInactiveChatThreadsDefinition,
+} = require("../systemJobs/definitions/cleanupInactiveChatThreads");
 const { BackgroundService } = require("../utils/BackgroundWorkers");
 const prisma = require("../utils/prisma");
 
@@ -13,7 +15,9 @@ const backgroundService = new BackgroundService();
 function systemJobsEndpoints(app) {
   if (!app) return;
 
-  const systemJobRegistry = registry.createRegistry([buildCleanupInactiveChatThreadsDefinition()]);
+  const systemJobRegistry = registry.createRegistry([
+    buildCleanupInactiveChatThreadsDefinition(),
+  ]);
 
   // GET /system-jobs
   app.get(
@@ -65,7 +69,9 @@ function systemJobsEndpoints(app) {
         const updated = await SystemJobConfig.setEnabled(key, !config.enabled);
         await backgroundService.syncSystemJob(key);
 
-        return response.status(200).json({ success: true, enabled: updated.enabled });
+        return response
+          .status(200)
+          .json({ success: true, enabled: updated.enabled });
       } catch (e) {
         console.error(e.message, e);
         response.sendStatus(500);

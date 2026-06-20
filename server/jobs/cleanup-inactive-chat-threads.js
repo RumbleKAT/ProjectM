@@ -11,8 +11,10 @@ const cleanupInactiveChatThreads = require("../systemJobs/handlers/cleanupInacti
     return conclude();
   }
 
-  let runId = process.env.SYSTEM_JOB_RUN_ID ? Number(process.env.SYSTEM_JOB_RUN_ID) : null;
-  let trigger = process.env.SYSTEM_JOB_TRIGGER || "scheduled";
+  let runId = process.env.SYSTEM_JOB_RUN_ID
+    ? Number(process.env.SYSTEM_JOB_RUN_ID)
+    : null;
+  let _trigger = process.env.SYSTEM_JOB_TRIGGER || "scheduled";
 
   if (!runId) {
     // This is a scheduled run triggered by Bree's internal cron timer
@@ -26,7 +28,7 @@ const cleanupInactiveChatThreads = require("../systemJobs/handlers/cleanupInacti
       return conclude();
     }
     runId = run.id;
-    trigger = "scheduled";
+    _trigger = "scheduled";
   }
 
   // Mark running

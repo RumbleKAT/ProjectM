@@ -63,8 +63,8 @@ spec:
         app.kubernetes.io/part-of: anything-llm
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/path: /metrics
-        prometheus.io/port: "9090"
+        prometheus.io/path: /api/metrics
+        prometheus.io/port: "3001"
     spec:
       serviceAccountName: "default"
       terminationGracePeriodSeconds: 10
@@ -208,7 +208,7 @@ spec:
     targetPort: 3001
     name: traffic
   - port: 9090
-    targetPort: 9090
+    targetPort: 3001
     name: metrics
   selector:
     k8s-app: anything-llm

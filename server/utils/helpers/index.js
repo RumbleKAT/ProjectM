@@ -134,6 +134,11 @@ function getVectorDbClass(getExactly = null) {
  * @returns {BaseLLMProvider}
  */
 function getLLMProvider({ provider = null, model = null } = {}) {
+  const providerInstance = _getLLMProvider({ provider, model });
+  return wrapLLMProvider(providerInstance);
+}
+
+function _getLLMProvider({ provider = null, model = null } = {}) {
   const LLMSelection = provider ?? process.env.LLM_PROVIDER ?? "openai";
   const embedder = getEmbeddingEngineSelection();
 
@@ -703,6 +708,136 @@ const THOUGHT_REGEX_COMPLETE = new RegExp(
 
 function stripThinkingFromText(text = "") {
   return text.replace(THOUGHT_REGEX_COMPLETE, "").trim();
+}
+
+function wrapLLMProvider(providerInstance) {
+  if (!providerInstance) return providerInstance;
+
+  let trackLLMCall;
+  try {
+    trackLLMCall = require("../metrics").trackLLMCall;
+  } catch (err) {
+    console.error("Failed to load metrics tracker:", err.message);
+    return providerInstance;
+  }
+
+  const originalGetChatCompletion = providerInstance.getChatCompletion;
+  if (originalGetChatCompletion) {
+    providerInstance.getChatCompletion = async function (messages, opts) {
+      const startTime = Date.now();
+      const providerName =
+        providerInstance.className ||
+        providerInstance.constructor.name ||
+        "unknown";
+      const modelName = providerInstance.model || "unknown";
+      try {
+        const result = await originalGetChatCompletion.call(
+          providerInstance,
+          messages,
+          opts
+        );
+        const duration = (Date.now() - startTime) / 1000;
+        const metrics = result?.metrics || {};
+        trackLLMCall({
+          provider: providerName,
+          model: modelName,
+          duration: metrics.duration || duration,
+          promptTokens: metrics.prompt_tokens || 0,
+          completionTokens: metrics.completion_tokens || 0,
+          status: "success",
+        });
+        return result;
+      } catch (err) {
+        const duration = (Date.now() - startTime) / 1000;
+        trackLLMCall({
+          provider: providerName,
+          model: modelName,
+          duration: duration,
+          promptTokens: 0,
+          completionTokens: 0,
+          status: "error",
+        });
+        throw err;
+      }
+    };
+  }
+
+  const originalStreamGetChatCompletion =
+    providerInstance.streamGetChatCompletion;
+  if (originalStreamGetChatCompletion) {
+    providerInstance.streamGetChatCompletion = async function (messages, opts) {
+      const providerName =
+        providerInstance.className ||
+        providerInstance.constructor.name ||
+        "unknown";
+      const modelName = providerInstance.model || "unknown";
+      try {
+        return await originalStreamGetChatCompletion.call(
+          providerInstance,
+          messages,
+          opts
+        );
+      } catch (err) {
+        trackLLMCall({
+          provider: providerName,
+          model: modelName,
+          duration: 0,
+          promptTokens: 0,
+          completionTokens: 0,
+          status: "error",
+        });
+        throw err;
+      }
+    };
+  }
+
+  const originalHandleStream = providerInstance.handleStream;
+  if (originalHandleStream) {
+    providerInstance.handleStream = async function (
+      response,
+      stream,
+      responseProps
+    ) {
+      const startTime = Date.now();
+      const providerName =
+        providerInstance.className ||
+        providerInstance.constructor.name ||
+        "unknown";
+      const modelName = providerInstance.model || "unknown";
+      try {
+        const result = await originalHandleStream.call(
+          providerInstance,
+          response,
+          stream,
+          responseProps
+        );
+        const duration = (Date.now() - startTime) / 1000;
+        const metrics = stream?.metrics || {};
+        trackLLMCall({
+          provider: providerName,
+          model: modelName,
+          duration: metrics.duration || duration,
+          promptTokens: metrics.prompt_tokens || 0,
+          completionTokens: metrics.completion_tokens || 0,
+          status: "success",
+        });
+        return result;
+      } catch (err) {
+        const duration = (Date.now() - startTime) / 1000;
+        trackLLMCall({
+          provider: providerName,
+          model: modelName,
+          duration: duration,
+          promptTokens: 0,
+          completionTokens: 0,
+          status: "error",
+        });
+        throw err;
+      }
+    };
+  }
+
+  return providerInstance;
 }
 
 module.exports = {

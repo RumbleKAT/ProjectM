@@ -50,7 +50,9 @@ const {
 const { memoryEndpoints } = require("./endpoints/memory");
 const { opencodeEndpoints } = require("./endpoints/opencode");
 const { httpLogger } = require("./middleware/httpLogger");
+const { httpMetricsMiddleware, metricsHandler } = require("./utils/metrics");
 const app = express();
+app.use(httpMetricsMiddleware);
 const apiRouter = express.Router();
 const FILE_LIMIT = "3GB";
 
@@ -82,6 +84,8 @@ if (!!process.env.ENABLE_HTTPS) {
 }
 
 app.use("/api", apiRouter);
+app.get("/metrics", metricsHandler);
+apiRouter.get("/metrics", metricsHandler);
 systemEndpoints(apiRouter);
 extensionEndpoints(apiRouter);
 workspaceEndpoints(apiRouter);

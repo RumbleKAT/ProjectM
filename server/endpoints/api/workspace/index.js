@@ -304,6 +304,54 @@ function apiWorkspaceEndpoints(app) {
     }
   );
 
+  // Async Chat — returns immediately with chatId, processes in background
+  app.post(
+    "/v1/workspace/chat-async",
+    [validApiKey],
+    async (request, response) => {
+      try {
+        const { workspaceName, message, mode = null, sessionId = null, attachments = [], reset = false, webhookUrl } = reqBody(request);
+        if (!workspaceName?.trim()) return response.status(400).json({ error: "workspaceName is required" });
+        if (!message?.trim()) return response.status(400).json({ error: "message is required" });
+
+        const workspace = await findOrCreateWorkspace(workspaceName, sessionId, reset);
+        const result = await ApiChatHandler.chatAsync({
+          workspace,
+          message,
+          mode: mode || "chat",
+          attachments: attachments || [],
+          sessionId,
+          apiSessionId: request.auth?.id || null,
+          webhookUrl,
+        });
+
+        return response.status(202).json({ success: true, ...result });
+      } catch (e) {
+        console.error("chat-async error:", e.message);
+        return response.status(500).json({ success: false, error: e.message });
+      }
+    }
+  );
+
+  // Status polling for async chats
+  app.get(
+    "/v1/workspace/chat-async/status/:chatId",
+    [validApiKey],
+    async (request, response) => {
+      try {
+        const chat = await WorkspaceChats.get({ id: Number(request.params.chatId) });
+        if (!chat) return response.status(404).json({ error: "Chat not found" });
+        return response.status(200).json({
+          chatId: chat.id,
+          status: chat.status,
+          response: chat.status === "completed" ? chat.response : undefined,
+        });
+      } catch (e) {
+        return response.status(500).json({ error: e.message });
+      }
+    }
+  );
+
   app.get("/v1/workspaces", [validApiKey], async (request, response) => {
     /*
     #swagger.tags = ['Workspaces']

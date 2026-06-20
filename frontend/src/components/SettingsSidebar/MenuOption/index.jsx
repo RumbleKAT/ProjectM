@@ -82,27 +82,48 @@ export default function MenuOption({
           }
         `}
       >
-        <Link
-          ref={ref}
-          to={href}
-          className={`flex flex-grow items-center px-[12px] h-[32px] font-medium ${
-            isChild ? "hover:text-white" : "text-white light:text-black"
-          }`}
-          onClick={hasChildren ? handleClick : undefined}
-        >
-          {icon}
-          <p
-            className={`${
-              isChild ? "text-xs" : "text-sm"
-            } leading-loose whitespace-nowrap overflow-hidden ml-2 ${
-              isActive
-                ? "text-white font-semibold"
-                : "text-white light:text-black"
-            } ${!icon && "pl-5"}`}
+        {typeof href === "string" && href.startsWith("http") ? (
+          <a
+            ref={ref}
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className={`flex flex-grow items-center px-[12px] h-[32px] font-medium ${
+              isChild ? "hover:text-white" : "text-white light:text-black"
+            }`}
           >
-            {btnText}
-          </p>
-        </Link>
+            {icon}
+            <p
+              className={`${
+                isChild ? "text-xs" : "text-sm"
+              } leading-loose whitespace-nowrap overflow-hidden ml-2 text-white light:text-black ${!icon && "pl-5"}`}
+            >
+              {btnText}
+            </p>
+          </a>
+        ) : (
+          <Link
+            ref={ref}
+            to={href}
+            className={`flex flex-grow items-center px-[12px] h-[32px] font-medium ${
+              isChild ? "hover:text-white" : "text-white light:text-black"
+            }`}
+            onClick={hasChildren ? handleClick : undefined}
+          >
+            {icon}
+            <p
+              className={`${
+                isChild ? "text-xs" : "text-sm"
+              } leading-loose whitespace-nowrap overflow-hidden ml-2 ${
+                isActive
+                  ? "text-white font-semibold"
+                  : "text-white light:text-black"
+              } ${!icon && "pl-5"}`}
+            >
+              {btnText}
+            </p>
+          </Link>
+        )}
         {hasChildren && (
           <button onClick={handleClick} className="p-2 text-white">
             <CaretRight

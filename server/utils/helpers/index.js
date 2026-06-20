@@ -714,16 +714,24 @@ function wrapLLMProvider(providerInstance) {
   if (!providerInstance) return providerInstance;
 
   let trackLLMCall;
+  let checkBudgetExceeded;
   try {
     trackLLMCall = require("../metrics").trackLLMCall;
+    const { BudgetManager } = require("../metrics/budget");
+    checkBudgetExceeded = BudgetManager.checkBudgetExceeded.bind(BudgetManager);
   } catch (err) {
-    console.error("Failed to load metrics tracker:", err.message);
+    console.error("Failed to load metrics or budget tracker:", err.message);
     return providerInstance;
   }
 
   const originalGetChatCompletion = providerInstance.getChatCompletion;
   if (originalGetChatCompletion) {
     providerInstance.getChatCompletion = async function (messages, opts) {
+      if (checkBudgetExceeded && (await checkBudgetExceeded())) {
+        throw new Error(
+          "LLM budget limit exceeded. Requests are blocked until reset."
+        );
+      }
       const startTime = Date.now();
       const providerName =
         providerInstance.className ||
@@ -766,6 +774,11 @@ function wrapLLMProvider(providerInstance) {
     providerInstance.streamGetChatCompletion;
   if (originalStreamGetChatCompletion) {
     providerInstance.streamGetChatCompletion = async function (messages, opts) {
+      if (checkBudgetExceeded && (await checkBudgetExceeded())) {
+        throw new Error(
+          "LLM budget limit exceeded. Requests are blocked until reset."
+        );
+      }
       const providerName =
         providerInstance.className ||
         providerInstance.constructor.name ||

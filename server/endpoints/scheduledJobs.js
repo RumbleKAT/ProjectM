@@ -1,7 +1,7 @@
 const { ScheduledJob } = require("../models/scheduledJob");
 const { ScheduledJobRun } = require("../models/scheduledJobRun");
 const { validatedRequest } = require("../utils/middleware/validatedRequest");
-const { isSingleUserMode } = require("../utils/middleware/multiUserProtected");
+const { flexUserRoleValid, ROLES } = require("../utils/middleware/multiUserProtected");
 const { reqBody, safeJsonParse } = require("../utils/http");
 const { BackgroundService } = require("../utils/BackgroundWorkers");
 const { Telemetry } = require("../models/telemetry");
@@ -17,7 +17,7 @@ function scheduledJobEndpoints(app) {
   // List available tools for job configuration
   app.get(
     "/scheduled-jobs/available-tools",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (_request, response) => {
       try {
         const tools = await ScheduledJob.availableTools();
@@ -32,7 +32,7 @@ function scheduledJobEndpoints(app) {
   // Get a single run detail
   app.get(
     "/scheduled-jobs/runs/:runId",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (request, response) => {
       try {
         const run = await ScheduledJobRun.get({
@@ -62,7 +62,7 @@ function scheduledJobEndpoints(app) {
   // Mark a run as read or continue in thread, or kill a running or queued job run
   app.post(
     "/scheduled-jobs/runs/:runId/:action",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (request, response) => {
       try {
         const { action } = request.params;
@@ -113,7 +113,7 @@ function scheduledJobEndpoints(app) {
   // List all scheduled jobs
   app.get(
     "/scheduled-jobs",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (_request, response) => {
       try {
         const jobs = await ScheduledJob.where({}, null, null, {
@@ -139,7 +139,7 @@ function scheduledJobEndpoints(app) {
   // Create a new scheduled job
   app.post(
     "/scheduled-jobs/new",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (request, response) => {
       try {
         const { name, prompt, tools, schedule } = reqBody(request);
@@ -196,7 +196,7 @@ function scheduledJobEndpoints(app) {
   // Get a single scheduled job
   app.get(
     "/scheduled-jobs/:id",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (request, response) => {
       try {
         const job = await ScheduledJob.get({
@@ -218,7 +218,7 @@ function scheduledJobEndpoints(app) {
   // Update a scheduled job
   app.put(
     "/scheduled-jobs/:id",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (request, response) => {
       try {
         const { name, prompt, tools, schedule, enabled } = reqBody(request);
@@ -274,7 +274,7 @@ function scheduledJobEndpoints(app) {
   // Delete a scheduled job
   app.delete(
     "/scheduled-jobs/:id",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (request, response) => {
       try {
         backgroundService.removeScheduledJob(Number(request.params.id));
@@ -291,7 +291,7 @@ function scheduledJobEndpoints(app) {
   // Toggle enable/disable
   app.post(
     "/scheduled-jobs/:id/toggle",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (request, response) => {
       try {
         const job = await ScheduledJob.get({
@@ -332,7 +332,7 @@ function scheduledJobEndpoints(app) {
   // Manual trigger — runs the job immediately
   app.post(
     "/scheduled-jobs/:id/trigger",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (request, response) => {
       try {
         const job = await ScheduledJob.get({
@@ -356,7 +356,7 @@ function scheduledJobEndpoints(app) {
   // List runs for a job
   app.get(
     "/scheduled-jobs/:id/runs",
-    [validatedRequest, isSingleUserMode],
+    [validatedRequest, flexUserRoleValid([ROLES.admin, ROLES.manager])],
     async (request, response) => {
       try {
         const runs = await ScheduledJobRun.where(

@@ -11,7 +11,24 @@ const httpDuration = new client.Histogram({
   buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
 });
 
-// 2. Database/User Metrics
+// 2. Database Metrics
+const dbQueryDuration = new client.Histogram({
+  name: "db_query_duration_seconds",
+  help: "Database query duration in seconds",
+  labelNames: ["query"],
+  buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
+});
+
+const dbPoolSize = new client.Gauge({
+  name: "db_pool_size",
+  help: "Database connection pool size",
+});
+
+const dbFileSizeBytes = new client.Gauge({
+  name: "db_file_size_bytes",
+  help: "Database file size in bytes",
+});
+
 const activeUsers = new client.Gauge({
   name: "active_users",
   help: "Number of active (non-suspended) users",
@@ -25,6 +42,43 @@ const activeWorkspaces = new client.Gauge({
 const dbConnectionStatus = new client.Gauge({
   name: "db_connection_status",
   help: "Database connection status (1 = connected, 0 = disconnected)",
+});
+
+const activeThreads = new client.Gauge({
+  name: "active_threads",
+  help: "Total number of active workspace threads",
+});
+
+const documentCount = new client.Gauge({
+  name: "document_count",
+  help: "Total number of documents",
+});
+
+const vectorCount = new client.Gauge({
+  name: "vector_count",
+  help: "Total number of document vectors",
+});
+
+const chatMessageCount = new client.Gauge({
+  name: "chat_message_count",
+  help: "Total number of chat messages",
+});
+
+const apiKeyCount = new client.Gauge({
+  name: "api_key_count",
+  help: "Total number of active developer API keys",
+});
+
+const scheduledJobRunsCount = new client.Gauge({
+  name: "scheduled_job_runs_count",
+  help: "Total number of scheduled job runs by status",
+  labelNames: ["status"],
+});
+
+const systemJobRunsCount = new client.Gauge({
+  name: "system_job_runs_count",
+  help: "Total number of system job runs by status",
+  labelNames: ["status"],
 });
 
 // 3. LLM Metrics
@@ -58,6 +112,17 @@ const diskTotalBytes = new client.Gauge({
   help: "Total disk space in bytes",
 });
 
+// 5. Budget Metrics
+const llmBudgetLimit = new client.Gauge({
+  name: "llm_budget_limit",
+  help: "LLM monthly budget limit in USD",
+});
+
+const llmBudgetCurrent = new client.Gauge({
+  name: "llm_budget_current",
+  help: "LLM monthly budget current usage in USD",
+});
+
 // HTTP middleware to observe request duration
 function httpMetricsMiddleware(req, res, next) {
   if (req.path === "/api/metrics" || req.path === "/metrics") {
@@ -83,21 +148,99 @@ function httpMetricsMiddleware(req, res, next) {
   next();
 }
 
+async function timedDbQuery(label, queryFn) {
+  const start = process.hrtime();
+  try {
+    const result = await queryFn();
+    const diff = process.hrtime(start);
+    dbQueryDuration.observe({ query: label }, diff[0] + diff[1] / 1e9);
+    return result;
+  } catch (err) {
+    const diff = process.hrtime(start);
+    dbQueryDuration.observe({ query: label }, diff[0] + diff[1] / 1e9);
+    throw err;
+  }
+}
+
 // Update dynamic metrics on scrape request
 async function updateDynamicMetrics() {
   // Database status and counts
   try {
     const prisma = require("../prisma");
-    await prisma.$queryRaw`SELECT 1`;
+    const fs = require("fs");
+    const path = require("path");
+
+    await timedDbQuery("ping", () => prisma.$queryRaw`SELECT 1`);
     dbConnectionStatus.set(1);
 
-    const activeUsersCount = await prisma.users.count({
-      where: { suspended: 0 },
-    });
+    try {
+      const dbPath = path.resolve(__dirname, "../../storage/anythingllm.db");
+      const stats = fs.statSync(dbPath);
+      dbFileSizeBytes.set(stats.size);
+    } catch {}
+
+    try {
+      const prismaClient = prisma;
+      dbPoolSize.set(
+        prismaClient._engineConfig
+          ? prismaClient._engineConfig.maxConnections || 1
+          : 1
+      );
+    } catch {}
+
+    const activeUsersCount = await timedDbQuery("count_users", () =>
+      prisma.users.count({ where: { suspended: 0 } })
+    );
     activeUsers.set(activeUsersCount);
 
-    const workspacesCount = await prisma.workspaces.count();
+    const workspacesCount = await timedDbQuery("count_workspaces", () =>
+      prisma.workspaces.count()
+    );
     activeWorkspaces.set(workspacesCount);
+
+    const threadsCount = await timedDbQuery("count_threads", () =>
+      prisma.workspace_threads.count()
+    );
+    activeThreads.set(threadsCount);
+
+    const docsCount = await timedDbQuery("count_documents", () =>
+      prisma.workspace_documents.count()
+    );
+    documentCount.set(docsCount);
+
+    const vectorsCount = await timedDbQuery("count_vectors", () =>
+      prisma.document_vectors.count()
+    );
+    vectorCount.set(vectorsCount);
+
+    const chatsCount = await timedDbQuery("count_chats", () =>
+      prisma.workspace_chats.count()
+    );
+    chatMessageCount.set(chatsCount);
+
+    const apiKeysCount = await timedDbQuery("count_api_keys", () =>
+      prisma.api_keys.count()
+    );
+    apiKeyCount.set(apiKeysCount);
+
+    const jobStatuses = [
+      "queued",
+      "running",
+      "completed",
+      "failed",
+      "timed_out",
+    ];
+    for (const status of jobStatuses) {
+      const scheduledCount = await timedDbQuery("count_scheduled_jobs", () =>
+        prisma.scheduled_job_runs.count({ where: { status } })
+      );
+      scheduledJobRunsCount.set({ status }, scheduledCount);
+
+      const systemCount = await timedDbQuery("count_system_jobs", () =>
+        prisma.system_job_runs.count({ where: { status } })
+      );
+      systemJobRunsCount.set({ status }, systemCount);
+    }
   } catch (err) {
     console.error("Failed to query DB for Prometheus metrics:", err.message);
     dbConnectionStatus.set(0);
@@ -111,6 +254,19 @@ async function updateDynamicMetrics() {
     diskTotalBytes.set(size);
   } catch (err) {
     console.error("Failed to query Disk for Prometheus metrics:", err.message);
+  }
+
+  // Budget
+  try {
+    const { BudgetManager } = require("./budget");
+    const { limit, current } = await BudgetManager.getSettings();
+    llmBudgetLimit.set(limit);
+    llmBudgetCurrent.set(current);
+  } catch (err) {
+    console.error(
+      "Failed to query Budget for Prometheus metrics:",
+      err.message
+    );
   }
 }
 
@@ -141,6 +297,20 @@ function trackLLMCall({
     }
     if (completionTokens) {
       llmTokens.inc({ provider, model, type: "completion" }, completionTokens);
+    }
+
+    try {
+      const { BudgetManager } = require("./budget");
+      BudgetManager.recordCallCost(
+        provider,
+        model,
+        promptTokens,
+        completionTokens
+      ).catch((err) =>
+        console.error("Failed to record call cost:", err.message)
+      );
+    } catch (err) {
+      console.error("Failed to record cost in trackLLMCall:", err.message);
     }
   }
 }

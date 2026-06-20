@@ -107,6 +107,9 @@ export default {
     users: () => {
       return `/settings/users`;
     },
+    budget: () => {
+      return `/settings/budget`;
+    },
     invites: () => {
       return `/settings/invites`;
     },

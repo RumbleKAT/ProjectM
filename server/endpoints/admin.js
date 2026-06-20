@@ -36,6 +36,57 @@ function adminEndpoints(app) {
   if (!app) return;
 
   app.get(
+    "/admin/budget",
+    [validatedRequest, strictMultiUserRoleValid([ROLES.admin])],
+    async (_request, response) => {
+      try {
+        const { BudgetManager } = require("../utils/metrics/budget");
+        const budget = await BudgetManager.getSettings();
+        response.status(200).json({ success: true, budget });
+      } catch (e) {
+        console.error(e);
+        response.sendStatus(500).end();
+      }
+    }
+  );
+
+  app.post(
+    "/admin/budget/settings",
+    [validatedRequest, strictMultiUserRoleValid([ROLES.admin])],
+    async (request, response) => {
+      try {
+        const { limit } = reqBody(request);
+        const { BudgetManager } = require("../utils/metrics/budget");
+        await BudgetManager.setLimit(limit);
+        response.status(200).json({
+          success: true,
+          message: "Budget limit updated successfully.",
+        });
+      } catch (e) {
+        console.error(e);
+        response.status(400).json({ success: false, error: e.message });
+      }
+    }
+  );
+
+  app.post(
+    "/admin/budget/reset",
+    [validatedRequest, strictMultiUserRoleValid([ROLES.admin])],
+    async (_request, response) => {
+      try {
+        const { BudgetManager } = require("../utils/metrics/budget");
+        await BudgetManager.resetBudget();
+        response
+          .status(200)
+          .json({ success: true, message: "Budget usage reset successfully." });
+      } catch (e) {
+        console.error(e);
+        response.sendStatus(500).end();
+      }
+    }
+  );
+
+  app.get(
     "/admin/users",
     [validatedRequest, strictMultiUserRoleValid([ROLES.admin, ROLES.manager])],
     async (_request, response) => {

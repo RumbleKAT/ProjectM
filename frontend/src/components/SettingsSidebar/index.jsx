@@ -387,6 +387,18 @@ const SidebarOptions = ({ user = null, t }) => (
               flex: true,
               roles: ["admin"],
             },
+            {
+              btnText: "Cost & Budget",
+              href: paths.settings.budget(),
+              flex: true,
+              roles: ["admin"],
+            },
+            {
+              btnText: "System Monitoring",
+              href: `http://${window.location.hostname}:3004`,
+              flex: true,
+              roles: ["admin"],
+            },
           ]}
         />
         <Option

@@ -10,6 +10,12 @@
         "ANYTHINGLLM_URL": "http://localhost:3000",
         "ANYTHINGLLM_API_KEY": "7A24YQ8-MZ54DF7-Q1F102P-NR75Y09"
       }
+    },
+    "calculator-sample": {
+      "command": "node",
+      "args": [
+        "./examples/mcp-sample/build/index.js"
+      ]
     }
   }
 }

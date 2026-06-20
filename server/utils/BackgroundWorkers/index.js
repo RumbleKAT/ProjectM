@@ -88,11 +88,12 @@ class BackgroundService {
     const isSilent = (args) => args.length === 1 && args[0]?.silent === true;
 
     const wrapped = Object.create(base);
+    const cleanArgs = (...args) => args.filter((a) => a !== undefined);
     wrapped.info = (...args) => {
-      if (!isSilent(args)) base.info(...args);
+      if (!isSilent(args)) base.info(...cleanArgs(...args));
     };
     wrapped.log = (...args) => {
-      if (!isSilent(args)) base.log(...args);
+      if (!isSilent(args)) base.log(...cleanArgs(...args));
     };
     return wrapped;
   }

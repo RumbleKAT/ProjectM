@@ -18,7 +18,7 @@
 # - Your container will build and boot. You now have AnythingLLM on HuggingFace. Your data is stored in the persistent storage attached.
 # Have Fun 🤗 
 # Have issues? Check the logs on HuggingFace for clues.
-FROM mintplexlabs/anythingllm:render
+FROM RumbleKAT/project-m:render
 
 USER root
 RUN mkdir -p /data/storage

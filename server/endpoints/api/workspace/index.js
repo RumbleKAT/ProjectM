@@ -21,6 +21,23 @@ const { getModelTag } = require("../../utils");
 const {
   workspaceDeletionProtection,
 } = require("../../../utils/middleware/workspaceDeletionProtection");
+const prisma = require("../../utils/prisma");
+
+async function findOrCreateWorkspace(workspaceName, sessionId, reset) {
+  const slug = Workspace.slugify(workspaceName, { lower: true });
+  if (sessionId) {
+    const existing = await prisma.workspaces.findFirst({ where: { slug } });
+    if (existing) {
+      if (reset) {
+        await WorkspaceChats.markThreadHistoryInvalidV2({ workspaceId: existing.id });
+      }
+      return existing;
+    }
+  }
+  const { workspace, message: errorMsg } = await Workspace.new(workspaceName, null, { isTemp: true });
+  if (!workspace) throw new Error(`Failed to create workspace: ${errorMsg}`);
+  return workspace;
+}
 
 function apiWorkspaceEndpoints(app) {
   if (!app) return;
@@ -247,6 +264,42 @@ function apiWorkspaceEndpoints(app) {
           close: true,
           error: e.message,
         });
+      }
+    }
+  );
+
+  // Sync Chat — auto-create temp workspace, respond immediately
+  app.post(
+    "/v1/workspace/chat-sync",
+    [validApiKey],
+    async (request, response) => {
+      try {
+        const { workspaceName, message, mode = null, sessionId = null, attachments = [], reset = false } = reqBody(request);
+        if (!workspaceName?.trim()) return response.status(400).json({ error: "workspaceName is required" });
+        if (!message?.trim()) return response.status(400).json({ error: "message is required" });
+
+        const workspace = await findOrCreateWorkspace(workspaceName, sessionId, reset);
+        const result = await ApiChatHandler.chatSync({
+          workspace,
+          message,
+          mode: mode || "chat",
+          attachments: attachments || [],
+          user: null,
+          thread: null,
+          sessionId: !!sessionId ? String(sessionId) : null,
+          reset,
+        });
+
+        return response.status(200).json({
+          success: true,
+          response: result.textResponse,
+          workspaceName: workspace.slug,
+          sources: result.sources || [],
+          chatId: result.id || null,
+        });
+      } catch (e) {
+        console.error("chat-sync error:", e.message);
+        return response.status(500).json({ success: false, error: e.message });
       }
     }
   );

@@ -143,7 +143,7 @@ async function sendWebhook(url, payload) {
       headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data) },
       timeout: 5000,
     };
-    const req = client.request(opts, (res) => { resolve(true); });
+    const req = client.request(opts, (res) => { resolve(res.statusCode >= 200 && res.statusCode < 300); });
     req.on("error", () => resolve(false));
     req.on("timeout", () => { req.destroy(); resolve(false); });
     req.write(data);

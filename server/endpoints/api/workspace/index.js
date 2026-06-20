@@ -24,7 +24,7 @@ const {
 const prisma = require("../../../utils/prisma");
 
 async function findOrCreateWorkspace(workspaceName, sessionId, reset) {
-  const slug = Workspace.slugify(workspaceName, { lower: true });
+  const slug = `temp-${Workspace.slugify(workspaceName, { lower: true })}`;
   if (sessionId) {
     const existing = await prisma.workspaces.findFirst({ where: { slug } });
     if (existing) {

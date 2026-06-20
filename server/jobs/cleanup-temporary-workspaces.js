@@ -1,5 +1,6 @@
 const prisma = require("../utils/prisma");
 const { log, conclude } = require("./helpers/index.js");
+const { getVectorDbClass } = require("../utils/helpers");
 
 (async () => {
   try {
@@ -18,6 +19,13 @@ const { log, conclude } = require("./helpers/index.js");
         await prisma.workspace_chats.deleteMany({ where: { workspaceId: ws.id } });
         await prisma.workspace_documents.deleteMany({ where: { workspaceId: ws.id } });
         await prisma.workspace_threads.deleteMany({ where: { workspaceId: ws.id } });
+
+        try {
+          const VectorDb = getVectorDbClass();
+          await VectorDb["delete-namespace"]({ namespace: ws.slug });
+        } catch (ve) {
+          log(`Failed to delete vector namespace for ${ws.slug}: ${ve.message}`);
+        }
 
         await prisma.workspaces.delete({ where: { id: ws.id } });
 

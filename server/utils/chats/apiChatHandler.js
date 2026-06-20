@@ -906,7 +906,7 @@ async function chatAsync({ workspace, message, mode, attachments, sessionId, api
     }
   });
 
-  return { chatId: chat.id, status: "pending" };
+  return { chatId: chat.id, status: "pending", workspaceName: workspace.slug };
 }
 
 module.exports.ApiChatHandler = {

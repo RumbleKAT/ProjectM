@@ -57,7 +57,7 @@ Notes:
 
 ```yaml
 image:
-  repository: mintplexlabs/anythingllm
+  repository: RumbleKAT/project-m
   tag: "1.14.1"
 
 service:
@@ -103,7 +103,7 @@ helm install my-anythingllm ./anythingllm -f values-secret.yaml
 | envFrom | object | `{}` |  |
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
-| image.repository | string | `"mintplexlabs/anythingllm"` |  |
+| image.repository | string | `"RumbleKAT/project-m"` |  |
 | image.tag | string | `"1.14.1"` |  |
 | imagePullSecrets | list | `[]` |  |
 | ingress.annotations | object | `{}` |  |

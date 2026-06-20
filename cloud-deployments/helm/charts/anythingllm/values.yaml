@@ -6,7 +6,7 @@ initContainers: []
   #   command: ['sh', '-c', 'chown -R 1000:1000 /storage']
 
 image:
-  repository: mintplexlabs/anythingllm
+  repository: RumbleKAT/project-m
   pullPolicy: IfNotPresent
   tag: "1.14.1"
 

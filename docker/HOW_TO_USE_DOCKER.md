@@ -38,7 +38,7 @@ Use the Dockerized version of AnythingLLM for a much faster and complete startup
 Pull in the latest image from docker. Supports both `amd64` and `arm64` CPU architectures.
 
 ```shell
-docker pull mintplexlabs/anythingllm
+docker pull RumbleKAT/project-m
 ```
 
 <table>
@@ -60,7 +60,7 @@ docker run -d --rm -p 3001:3001 \
 -v ${STORAGE_LOCATION}:/app/server/storage \
 -v ${STORAGE_LOCATION}/.env:/app/server/.env \
 -e STORAGE_DIR="/app/server/storage" \
-mintplexlabs/anythingllm
+RumbleKAT/project-m
 ```
 
 </td>
@@ -81,7 +81,7 @@ docker run -d --rm -p 3001:3001 `
 -v "$env:STORAGE_LOCATION`:/app/server/storage" `
 -v "$env:STORAGE_LOCATION\.env:/app/server/.env" `
 -e STORAGE_DIR="/app/server/storage" `
-mintplexlabs/anythingllm;
+RumbleKAT/project-m;
 ```
 
 </td>
@@ -95,7 +95,7 @@ mintplexlabs/anythingllm;
 version: '3.8'
 services:
   anythingllm:
-    image: mintplexlabs/anythingllm
+    image: RumbleKAT/project-m
     container_name: anythingllm
     ports:
     - "3001:3001"

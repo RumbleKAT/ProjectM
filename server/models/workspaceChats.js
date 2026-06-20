@@ -331,6 +331,7 @@ const WorkspaceChats = {
         data: {
           workspaceId,
           prompt,
+          response: "",
           status,
           api_session_id: apiSessionId,
         },

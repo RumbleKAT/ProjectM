@@ -21,7 +21,7 @@ const { getModelTag } = require("../../utils");
 const {
   workspaceDeletionProtection,
 } = require("../../../utils/middleware/workspaceDeletionProtection");
-const prisma = require("../../utils/prisma");
+const prisma = require("../../../utils/prisma");
 
 async function findOrCreateWorkspace(workspaceName, sessionId, reset) {
   const slug = Workspace.slugify(workspaceName, { lower: true });
@@ -295,7 +295,7 @@ function apiWorkspaceEndpoints(app) {
           response: result.textResponse,
           workspaceName: workspace.slug,
           sources: result.sources || [],
-          chatId: result.id || null,
+          chatId: result.chatId || null,
         });
       } catch (e) {
         console.error("chat-sync error:", e.message);

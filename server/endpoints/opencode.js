@@ -78,7 +78,7 @@ function opencodeEndpoints(app) {
           model: config.model,
           hasApiKey: !!config.apiKey,
           baseUrl: config.baseUrl,
-          serverUrl: "http://localhost:4096",
+          serverUrl: process.env.OPENCODE_SERVER_URL || "http://localhost:4096",
           sdkLoaded: !!sdk,
         });
       } catch (e) {
@@ -140,7 +140,7 @@ function opencodeEndpoints(app) {
       try {
         const {
           prompt,
-          serverUrl = "http://localhost:4096",
+          serverUrl = process.env.OPENCODE_SERVER_URL || "http://localhost:4096",
           model,
         } = reqBody(request);
         if (!prompt || prompt.trim().length === 0) {
@@ -207,6 +207,8 @@ function opencodeEndpoints(app) {
             : { providerID: config.provider, modelID: model };
         } else if (config.model) {
           modelParam = { providerID: config.provider, modelID: config.model };
+        } else {
+          modelParam = { providerID: "opencode", modelID: "big-pickle" };
         }
 
         // Send prompt and get streaming response
@@ -237,12 +239,14 @@ function opencodeEndpoints(app) {
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split("\n");
-          buffer = parts.pop() || "";
 
-          for (const line of parts) {
+          // Process complete lines (SSE: data:...\n or NDJSON: {...}\n)
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
             const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith("event:") || trimmed.startsWith("id:")) continue;
+            if (!trimmed) continue;
 
             const data = trimmed.startsWith("data:")
               ? trimmed.slice(5).trim()
@@ -253,7 +257,6 @@ function opencodeEndpoints(app) {
             try {
               const parsed = JSON.parse(data);
 
-              // Handle different event shapes from the response stream
               if (parsed.parts) {
                 for (const part of parsed.parts) {
                   if (part.type === "text" && part.text) {
@@ -272,6 +275,37 @@ function opencodeEndpoints(app) {
               }
             } catch {
               // non-JSON data line — skip
+            }
+          }
+        }
+
+        // Process remaining buffer after stream ends
+        if (buffer.trim()) {
+          const data = buffer.startsWith("data:")
+            ? buffer.slice(5).trim()
+            : buffer.trim();
+
+          if (data && data !== "[DONE]") {
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.parts) {
+                for (const part of parsed.parts) {
+                  if (part.type === "text" && part.text) {
+                    writeResponseChunk(response, {
+                      type: "message",
+                      text: part.text,
+                    });
+                  }
+                }
+              }
+              if (parsed.info) {
+                writeResponseChunk(response, {
+                  type: "info",
+                  data: parsed.info,
+                });
+              }
+            } catch {
+              // ignore
             }
           }
         }
@@ -380,14 +414,59 @@ function opencodeEndpoints(app) {
           "utf-8"
         );
 
+        // Also dynamically register with the running OpenCode server
+        const opencodeUrl = process.env.OPENCODE_SERVER_URL || "http://localhost:4096";
+        let liveRegistered = false;
+        try {
+          const mcpRes = await fetch(`${opencodeUrl}/mcp`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: "anythingllm",
+              config: {
+                type: "local",
+                command: ["npx", "-y", "@raqueljezweb/anythingllm-mcp-server"],
+                env: {
+                  ANYTHINGLLM_URL: anythingllmUrl,
+                  ANYTHINGLLM_API_KEY: finalApiKey,
+                },
+              },
+            }),
+          });
+          liveRegistered = mcpRes.ok;
+        } catch (e) {
+          console.warn("Failed to dynamically register MCP server:", e.message);
+        }
+
         response.status(200).json({
           success: true,
           filePath: targetPath,
           config: currentConfig,
+          liveRegistered,
         });
       } catch (e) {
         console.error(e);
         response.status(500).json({ success: false, error: e.message });
+      }
+    }
+  );
+
+  app.get(
+    "/opencode/mcp-status",
+    [validatedRequest, flexUserRoleValid([ROLES.all])],
+    async (request, response) => {
+      try {
+        const opencodeUrl = process.env.OPENCODE_SERVER_URL || "http://localhost:4096";
+        const res = await fetch(`${opencodeUrl}/mcp`, {
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) {
+          return response.status(res.status).json({ success: false, error: `OpenCode server returned ${res.status}` });
+        }
+        const data = await res.json();
+        response.status(200).json({ success: true, mcpStatus: data });
+      } catch (e) {
+        response.status(200).json({ success: false, error: e.message, mcpStatus: null });
       }
     }
   );

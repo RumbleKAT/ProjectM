@@ -1540,6 +1540,20 @@ const TRANSLATIONS = {
     },
   },
   scheduledJobs: {
+    tabs: {
+      ai: "AI 작업",
+      system: "시스템 작업",
+    },
+    systemJobs: {
+      emptyTitle: "등록된 시스템 작업이 없습니다.",
+      emptySubtitle: "개발자 시스템 작업이 올바르게 등록되었는지 확인하세요.",
+      toast: {
+        toggled: "시스템 작업 상태가 업데이트되었습니다.",
+        triggered: "시스템 작업이 성공적으로 시작되었습니다.",
+        triggerFailed: "시스템 작업 실행 실패",
+        triggerSkipped: "이 시스템 작업은 이미 실행 중입니다.",
+      },
+    },
     title: "예정된 작업",
     enableNotifications: "채용 결과에 대한 브라우저 알림 활성화",
     description:

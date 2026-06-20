@@ -3,6 +3,9 @@ const slugifyModule = require("slugify");
 const { v4: uuidv4 } = require("uuid");
 const truncate = require("truncate");
 
+const DELETE_CHUNK_SIZE = 400;
+const DELETE_TRANSACTION_OPTIONS = { maxWait: 5_000, timeout: 30_000 };
+
 const WorkspaceThread = {
   defaultName: "Thread",
   writable: ["name"],
@@ -90,10 +93,50 @@ const WorkspaceThread = {
   },
 
   delete: async function (clause = {}) {
+    if (
+      !clause ||
+      typeof clause !== "object" ||
+      Object.keys(clause).length === 0
+    ) {
+      console.error("WorkspaceThread.delete requires a non-empty clause");
+      return false;
+    }
+
     try {
-      await prisma.workspace_threads.deleteMany({
-        where: clause,
-      });
+      await prisma.$transaction(async (tx) => {
+        const threads = await tx.workspace_threads.findMany({
+          where: clause,
+          select: { id: true },
+        });
+        const threadIds = threads.map(({ id }) => id);
+        if (threadIds.length === 0) return;
+
+        const chunks = [];
+        for (
+          let index = 0;
+          index < threadIds.length;
+          index += DELETE_CHUNK_SIZE
+        )
+          chunks.push(threadIds.slice(index, index + DELETE_CHUNK_SIZE));
+
+        // These legacy thread_id fields intentionally have no FK, so cleanup is
+        // best-effort against stale concurrent writers. Parsed files use FK cascade.
+        for (const ids of chunks) {
+          await tx.workspace_agent_invocations.deleteMany({
+            where: { thread_id: { in: ids } },
+          });
+        }
+        for (const ids of chunks) {
+          await tx.workspace_chats.deleteMany({
+            where: { thread_id: { in: ids } },
+          });
+        }
+        for (const ids of chunks) {
+          await tx.workspace_threads.deleteMany({
+            where: { id: { in: ids } },
+          });
+        }
+      }, DELETE_TRANSACTION_OPTIONS);
       return true;
     } catch (error) {
       console.error(error.message);

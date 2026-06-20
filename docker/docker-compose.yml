@@ -5,6 +5,30 @@ networks:
     driver: bridge
 
 services:
+  opencode-server:
+    container_name: opencode-server
+    image: vinnyahh/opencode-box:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4096:4096"
+    environment:
+      - OPENCODE_ALLOWED_ORIGINS=*
+      - OPENCODE_PORT=4096
+      - OPENCODE_HOSTNAME=0.0.0.0
+      - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENCODE_PROJECT_DIR=/projects
+    entrypoint: ["opencode", "serve", "--hostname=0.0.0.0", "--port=4096"]
+    volumes:
+      - opencode-data:/root/.local/share/opencode
+    networks:
+      - anything-llm
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4096/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   anything-llm:
     container_name: anythingllm
     build:
@@ -15,6 +39,9 @@ services:
         ARG_GID: ${GID:-1000}
     cap_add:
       - SYS_ADMIN
+    depends_on:
+      opencode-server:
+        condition: service_healthy
     volumes:
       - "./.env:/app/server/.env"
       - "../server/storage:/app/server/storage"
@@ -23,9 +50,15 @@ services:
     user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "3001:3001"
+    environment:
+      - OPENCODE_DISABLE_AUTO_START=true
+      - OPENCODE_SERVER_URL=http://opencode-server:4096
     env_file:
       - .env
     networks:
       - anything-llm
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+volumes:
+  opencode-data:

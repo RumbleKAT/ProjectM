@@ -1734,6 +1734,20 @@ const TRANSLATIONS = {
     },
   },
   scheduledJobs: {
+    tabs: {
+      ai: "AI Jobs",
+      system: "System Jobs",
+    },
+    systemJobs: {
+      emptyTitle: "No System Jobs registered",
+      emptySubtitle: "Ensure developer system jobs are correctly registered.",
+      toast: {
+        toggled: "System job status updated",
+        triggered: "System job triggered successfully",
+        triggerFailed: "Failed to trigger system job",
+        triggerSkipped: "A run is already in progress for this system job",
+      },
+    },
     title: "Scheduled Jobs",
     enableNotifications: "Enable browser notifications for job results",
     description:

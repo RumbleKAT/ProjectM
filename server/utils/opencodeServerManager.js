@@ -115,7 +115,7 @@ async function startContainer() {
     "--restart",
     "no",
     "-p",
-    `${HOST_PORT}:${CONTAINER_PORT}`,
+    `127.0.0.1:${HOST_PORT}:${CONTAINER_PORT}`,
     ...envFlags,
     "--entrypoint",
     "opencode",
@@ -185,6 +185,16 @@ async function waitForHealthy(timeoutMs = START_TIMEOUT_MS) {
 async function start() {
   if (server) {
     return { url: `http://127.0.0.1:${HOST_PORT}` };
+  }
+
+  if (process.env.OPENCODE_DISABLE_AUTO_START === "true") {
+    const externalUrl =
+      process.env.OPENCODE_SERVER_URL || `http://127.0.0.1:${HOST_PORT}`;
+    server = { url: externalUrl };
+    console.log(
+      `\x1b[36m[OpenCode Server]\x1b[0m Auto-start disabled — connecting to external server at ${externalUrl}`
+    );
+    return { url: externalUrl };
   }
 
   if (starting) {

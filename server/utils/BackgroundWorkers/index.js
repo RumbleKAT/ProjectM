@@ -134,6 +134,35 @@ class BackgroundService {
     );
 
     await this.#bootScheduledJobs();
+    await this.#bootSystemJobs();
+  }
+
+  async #bootSystemJobs() {
+    const { SystemJobConfig } = require("../../models/systemJobConfig");
+    const { SystemJobRun } = require("../../models/systemJobRun");
+    const registry = require("../../systemJobs/registry");
+    const { buildCleanupInactiveChatThreadsDefinition } = require("../../systemJobs/definitions/cleanupInactiveChatThreads");
+
+    try {
+      const systemJobRegistry = registry.createRegistry([buildCleanupInactiveChatThreadsDefinition()]);
+      await SystemJobConfig.syncDefinitions(systemJobRegistry.all());
+      await SystemJobRun.failOrphanedRuns();
+
+      for (const job of systemJobRegistry.all()) {
+        const config = await SystemJobConfig.get(job.key);
+        if (config?.enabled) {
+          await this.bree.add({
+            name: job.key,
+            cron: job.schedule,
+            timeout: "10m",
+          });
+          await this.bree.start(job.key);
+          this.#log(`Scheduled system job "${job.key}" with schedule "${job.schedule}"`);
+        }
+      }
+    } catch (err) {
+      this.#log(`Failed to boot system jobs: ${err.message}`);
+    }
   }
 
   /**
@@ -425,6 +454,87 @@ class BackgroundService {
         if (workers.size === 0) this.#scheduledJobWorkers.delete(jobId);
       }
       await this.removeJob(workerId).catch(() => {});
+    }
+  }
+
+  async syncSystemJob(jobKey) {
+    if (!this.bree) return;
+    const { SystemJobConfig } = require("../../models/systemJobConfig");
+    const registry = require("../../systemJobs/registry");
+    const { buildCleanupInactiveChatThreadsDefinition } = require("../../systemJobs/definitions/cleanupInactiveChatThreads");
+
+    try {
+      const systemJobRegistry = registry.createRegistry([buildCleanupInactiveChatThreadsDefinition()]);
+      const definition = systemJobRegistry.get(jobKey);
+      if (!definition) return;
+
+      const config = await SystemJobConfig.get(jobKey);
+      const isCurrentlyRunning = this.bree.config.jobs.some(
+        (j) => j.name === jobKey
+      );
+
+      if (config?.enabled && !isCurrentlyRunning) {
+        await this.bree.add({
+          name: jobKey,
+          cron: definition.schedule,
+          timeout: "10m",
+        });
+        await this.bree.start(jobKey);
+        this.#log(`Scheduled system job "${jobKey}" dynamically`);
+      } else if (!config?.enabled && isCurrentlyRunning) {
+        await this.bree.stop(jobKey);
+        await this.bree.remove(jobKey);
+        this.#log(`Stopped and unscheduled system job "${jobKey}" dynamically`);
+      }
+    } catch (err) {
+      this.#log(`Failed to sync system job "${jobKey}": ${err.message}`);
+    }
+  }
+
+  async triggerSystemJob(jobKey) {
+    if (!this.bree) return null;
+    const { SystemJobConfig } = require("../../models/systemJobConfig");
+    const { SystemJobRun } = require("../../models/systemJobRun");
+    const registry = require("../../systemJobs/registry");
+    const { buildCleanupInactiveChatThreadsDefinition } = require("../../systemJobs/definitions/cleanupInactiveChatThreads");
+
+    try {
+      const systemJobRegistry = registry.createRegistry([buildCleanupInactiveChatThreadsDefinition()]);
+      const definition = systemJobRegistry.get(jobKey);
+      if (!definition) return null;
+
+      const config = await SystemJobConfig.get(jobKey);
+      if (!config) return null;
+
+      const run = await SystemJobRun.claim(config.id, "manual");
+      if (!run) return null;
+
+      const scriptPath = path.resolve(this.#root, `${jobKey}.js`);
+      const jobId = `${jobKey}-manual-${Date.now()}`;
+
+      await this.bree.add({
+        name: jobId,
+        path: scriptPath,
+        env: {
+          SYSTEM_JOB_RUN_ID: String(run.id),
+          SYSTEM_JOB_TRIGGER: "manual",
+          ...process.env,
+        },
+      });
+
+      await this.bree.run(jobId);
+
+      const worker = this.bree.workers.get(jobId);
+      if (worker) {
+        worker.on("exit", () => {
+          this.removeJob(jobId).catch(() => {});
+        });
+      }
+
+      return run;
+    } catch (err) {
+      this.#log(`Failed to trigger system job "${jobKey}": ${err.message}`);
+      return null;
     }
   }
 }

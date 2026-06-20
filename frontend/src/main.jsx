@@ -416,7 +416,25 @@ const router = createBrowserRouter([
           const { default: ScheduledJobs } = await import(
             "@/pages/GeneralSettings/ScheduledJobs"
           );
-          return { element: <SingleUserRoute Component={ScheduledJobs} /> };
+          return { element: <AdminRoute Component={ScheduledJobs} /> };
+        },
+      },
+      {
+        path: "/settings/scheduled-jobs/system/:jobKey/runs",
+        lazy: async () => {
+          const { default: SystemRunHistoryPage } = await import(
+            "@/pages/GeneralSettings/ScheduledJobs/SystemRunHistoryPage"
+          );
+          return { element: <AdminRoute Component={SystemRunHistoryPage} /> };
+        },
+      },
+      {
+        path: "/settings/scheduled-jobs/system/:jobKey/runs/:runId",
+        lazy: async () => {
+          const { default: SystemRunDetailPage } = await import(
+            "@/pages/GeneralSettings/ScheduledJobs/SystemRunDetailPage"
+          );
+          return { element: <AdminRoute Component={SystemRunDetailPage} /> };
         },
       },
       {
@@ -425,7 +443,7 @@ const router = createBrowserRouter([
           const { default: ScheduledJobRuns } = await import(
             "@/pages/GeneralSettings/ScheduledJobs/RunHistoryPage"
           );
-          return { element: <SingleUserRoute Component={ScheduledJobRuns} /> };
+          return { element: <AdminRoute Component={ScheduledJobRuns} /> };
         },
       },
       {
@@ -435,7 +453,7 @@ const router = createBrowserRouter([
             "@/pages/GeneralSettings/ScheduledJobs/RunDetailPage"
           );
           return {
-            element: <SingleUserRoute Component={ScheduledJobRunDetail} />,
+            element: <AdminRoute Component={ScheduledJobRunDetail} />,
           };
         },
       },

@@ -13,11 +13,15 @@ import showToast from "@/utils/toast";
 import JobRow from "./components/JobRow";
 import { Bell } from "@phosphor-icons/react";
 import { Tooltip } from "react-tooltip";
+import { useSearchParams } from "react-router-dom";
+import SystemJobsPanel from "./SystemJobsPanel";
 
 export default function ScheduledJobsPage() {
   const { t } = useTranslation();
   useWebPushNotifications(false);
   const { isOpen, openModal, closeModal } = useModal();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "system" ? "system" : "ai";
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState([]);
   const [editingJob, setEditingJob] = useState(null);
@@ -91,55 +95,90 @@ export default function ScheduledJobsPage() {
 
   return (
     <BaseLayout
-      showNewJobButton={jobs.length !== 0}
+      showNewJobButton={activeTab === "ai" && jobs.length !== 0}
       handleCreate={handleCreate}
     >
-      <div className="pt-8">
-        <div className="flex items-center justify-between px-4 pb-[18px] text-xs font-semibold uppercase tracking-[1.4px] text-zinc-400 light:text-slate-600">
-          <span className="w-[150px]">{t("scheduledJobs.table.name")}</span>
-          <span className="w-[180px]">{t("scheduledJobs.table.schedule")}</span>
-          <span className="w-[120px]">{t("scheduledJobs.table.status")}</span>
-          <span className="w-[180px]">{t("scheduledJobs.table.lastRun")}</span>
-          <span className="w-[180px]">{t("scheduledJobs.table.nextRun")}</span>
-          <span className="w-[140px] text-right">
-            {t("scheduledJobs.table.actions")}
-          </span>
-        </div>
-        <div className="h-px w-full bg-white/10 light:bg-slate-300" />
-
-        {jobs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-8 py-24 text-center">
-            <div className="flex flex-col gap-1.5">
-              <p className="text-base font-semibold text-zinc-50 light:text-slate-950">
-                {t("scheduledJobs.emptyTitle")}
-              </p>
-              <p className="text-sm font-medium text-zinc-400 light:text-slate-600">
-                {t("scheduledJobs.emptySubtitle")}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleCreate}
-              className="border-none h-9 px-5 rounded-lg bg-zinc-50 text-zinc-950 light:bg-slate-900 light:text-white text-sm font-medium hover:bg-zinc-200 light:hover:bg-slate-800 transition-colors"
-            >
-              {t("scheduledJobs.newJob")}
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col divide-y divide-white/5 light:divide-slate-300">
-            {jobs.map((job) => (
-              <JobRow
-                key={job.id}
-                job={job}
-                onTrigger={handleTrigger}
-                onToggle={handleToggle}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        )}
+      <div className="flex gap-x-4 border-b border-white/10 light:border-slate-300 pb-4 mb-6">
+        <button
+          type="button"
+          onClick={() => setSearchParams({ tab: "ai" })}
+          className={`border-none bg-transparent px-4 py-2 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+            activeTab === "ai"
+              ? "text-white border-white light:text-slate-950 light:border-slate-950"
+              : "text-zinc-400 border-transparent hover:text-zinc-200 light:text-slate-500 light:hover:text-slate-800"
+          }`}
+        >
+          {t("scheduledJobs.tabs.ai", "AI Jobs")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSearchParams({ tab: "system" })}
+          className={`border-none bg-transparent px-4 py-2 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+            activeTab === "system"
+              ? "text-white border-white light:text-slate-950 light:border-slate-950"
+              : "text-zinc-400 border-transparent hover:text-zinc-200 light:text-slate-500 light:hover:text-slate-800"
+          }`}
+        >
+          {t("scheduledJobs.tabs.system", "System Jobs")}
+        </button>
       </div>
+
+      {activeTab === "ai" ? (
+        <div className="pt-2">
+          <div className="flex items-center justify-between px-4 pb-[18px] text-xs font-semibold uppercase tracking-[1.4px] text-zinc-400 light:text-slate-600">
+            <span className="w-[150px]">{t("scheduledJobs.table.name")}</span>
+            <span className="w-[180px]">
+              {t("scheduledJobs.table.schedule")}
+            </span>
+            <span className="w-[120px]">{t("scheduledJobs.table.status")}</span>
+            <span className="w-[180px]">
+              {t("scheduledJobs.table.lastRun")}
+            </span>
+            <span className="w-[180px]">
+              {t("scheduledJobs.table.nextRun")}
+            </span>
+            <span className="w-[140px] text-right">
+              {t("scheduledJobs.table.actions")}
+            </span>
+          </div>
+          <div className="h-px w-full bg-white/10 light:bg-slate-300" />
+
+          {jobs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-8 py-24 text-center">
+              <div className="flex flex-col gap-1.5">
+                <p className="text-base font-semibold text-zinc-50 light:text-slate-950">
+                  {t("scheduledJobs.emptyTitle")}
+                </p>
+                <p className="text-sm font-medium text-zinc-400 light:text-slate-600">
+                  {t("scheduledJobs.emptySubtitle")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCreate}
+                className="border-none h-9 px-5 rounded-lg bg-zinc-50 text-zinc-950 light:bg-slate-900 light:text-white text-sm font-medium hover:bg-zinc-200 light:hover:bg-slate-800 transition-colors"
+              >
+                {t("scheduledJobs.newJob")}
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col divide-y divide-white/5 light:divide-slate-300">
+              {jobs.map((job) => (
+                <JobRow
+                  key={job.id}
+                  job={job}
+                  onTrigger={handleTrigger}
+                  onToggle={handleToggle}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <SystemJobsPanel />
+      )}
 
       <ModalWrapper isOpen={isOpen}>
         <JobFormModal

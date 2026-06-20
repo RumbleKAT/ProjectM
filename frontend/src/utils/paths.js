@@ -202,6 +202,12 @@ export default {
     scheduledJobRunDetail: (jobId, runId) => {
       return `/settings/scheduled-jobs/${jobId}/runs/${runId}`;
     },
+    systemJobRuns: (jobKey) => {
+      return `/settings/scheduled-jobs/system/${encodeURIComponent(jobKey)}/runs`;
+    },
+    systemJobRunDetail: (jobKey, runId) => {
+      return `/settings/scheduled-jobs/system/${encodeURIComponent(jobKey)}/runs/${runId}`;
+    },
   },
   agents: {
     builder: () => {

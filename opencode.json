@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "anythingllm": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@raqueljezweb/anythingllm-mcp-server"
+      ],
+      "env": {
+        "ANYTHINGLLM_URL": "http://localhost:3000",
+        "ANYTHINGLLM_API_KEY": "7A24YQ8-MZ54DF7-Q1F102P-NR75Y09"
+      }
+    }
+  }
+}

@@ -180,19 +180,21 @@ model workspace_suggested_messages {
 }
 
 model workspace_chats {
-  id             Int      @id @default(autoincrement())
-  workspaceId    Int
-  prompt         String
-  response       String
-  include        Boolean  @default(true)
-  user_id        Int?
-  thread_id      Int? // No relation to prevent whole table migration
-  api_session_id String? // String identifier for only the dev API to partition chats in any mode.
-  createdAt      DateTime @default(now())
-  lastUpdatedAt  DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  workspaceId     Int
+  prompt          String
+  response        String
+  include         Boolean  @default(true)
+  user_id         Int?
+  thread_id       Int? // No relation to prevent whole table migration
+  api_session_id  String? // String identifier for only the dev API to partition chats in any mode.
+  createdAt       DateTime @default(now())
+  lastUpdatedAt   DateTime @default(now())
   feedbackScore   Boolean?
   memoryProcessed Boolean? @map("memory_processed")
   users           users?   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([thread_id])
 }
 
 model workspace_agent_invocations {
@@ -209,6 +211,7 @@ model workspace_agent_invocations {
   workspace     workspaces @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([uuid])
+  @@index([thread_id])
 }
 
 model workspace_users {
@@ -389,6 +392,7 @@ model workspace_parsed_files {
 
   @@index([workspaceId])
   @@index([userId])
+  @@index([threadId])
 }
 
 model external_communication_connectors {
@@ -426,6 +430,37 @@ model scheduled_job_runs {
   job         scheduled_jobs @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId])
+}
+
+model system_job_configs {
+  id        Int               @id @default(autoincrement())
+  jobKey    String            @unique
+  enabled   Boolean           @default(false)
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @default(now()) @updatedAt
+  runs      system_job_runs[]
+}
+
+model system_job_runs {
+  id                Int                @id @default(autoincrement())
+  systemJobConfigId Int
+  status            String             @default("queued")
+  trigger           String
+  result            String?
+  logs              String?
+  error             String?
+  queuedAt          DateTime           @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+  config            system_job_configs @relation(fields: [systemJobConfigId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // Partial unique index `system_job_runs_one_in_flight_per_config` is defined
+  // in migration SQL because Prisma cannot express partial indexes. It permits
+  // history while enforcing one queued/running row per system-job config.
+  @@index([systemJobConfigId, queuedAt])
+  @@index([status])
 }
 
 model memories {

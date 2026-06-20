@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/SettingsSidebar";
 import { isMobile } from "react-device-detect";
-import { Play, Terminal, CheckCircle, Warning, Trash, Gear, Cpu, Plug } from "@phosphor-icons/react";
+import { Play, Terminal, CheckCircle, Warning, Trash, Gear, Cpu, Plug, ArrowClockwise } from "@phosphor-icons/react";
 import { API_BASE } from "@/utils/constants";
 import { baseHeaders } from "@/utils/request";
 import showToast from "@/utils/toast";
@@ -10,18 +10,16 @@ export default function GeneralOpencode() {
   const [loading, setLoading] = useState(true);
   const [systemConfig, setSystemConfig] = useState(null);
   const [serverUrl, setServerUrl] = useState("http://localhost:4096");
-  const [selectedModel, setSelectedModel] = useState("default");
+  const [selectedModel, setSelectedModel] = useState("opencode/big-pickle");
   const [customModel, setCustomModel] = useState("");
   
   // MCP configurations
   const [mcpConfig, setMcpConfig] = useState(null);
+  const [opencodeMcpStatus, setOpencodeMcpStatus] = useState(null);
   const [mcpType, setMcpType] = useState("project");
   const [selectedApiKey, setSelectedApiKey] = useState("generate");
   const [anythingllmUrl, setAnythingllmUrl] = useState(window.location.origin);
   const [mcpSaving, setMcpSaving] = useState(false);
-  
-  // Tabs: 'opencode' or 'default-llm'
-  const [activeTab, setActiveTab] = useState("opencode");
   
   const [prompt, setPrompt] = useState("");
   const [running, setRunning] = useState(false);
@@ -32,6 +30,7 @@ export default function GeneralOpencode() {
   useEffect(() => {
     fetchConfig();
     fetchMCPConfig();
+    fetchOpencodeMcpStatus();
   }, []);
 
   useEffect(() => {
@@ -78,6 +77,22 @@ export default function GeneralOpencode() {
     }
   };
 
+  const fetchOpencodeMcpStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/opencode/mcp-status`, {
+        headers: baseHeaders(),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setOpencodeMcpStatus(data.mcpStatus || {});
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch OpenCode MCP status:", e);
+    }
+  };
+
   const checkServerConnection = async (urlToTest) => {
     setConnectionStatus("checking");
     try {
@@ -110,7 +125,7 @@ export default function GeneralOpencode() {
       ...prev,
       {
         type: "system",
-        text: `Starting session: [Mode: ${activeTab === "opencode" ? "OpenCode Agent via SDK" : "Direct LLM Call"}]`,
+        text: "Starting session: [Mode: OpenCode Agent via SDK]",
         time: new Date().toLocaleTimeString(),
       },
       {
@@ -120,10 +135,8 @@ export default function GeneralOpencode() {
       },
     ]);
 
-    const targetUrl = activeTab === "opencode" ? `${API_BASE}/opencode/chat` : `${API_BASE}/opencode/chat-llm`;
-    const targetModel = selectedModel === "default" 
-      ? undefined 
-      : (selectedModel === "custom" ? customModel : selectedModel);
+    const targetUrl = `${API_BASE}/opencode/chat`;
+    const targetModel = selectedModel === "custom" ? customModel : selectedModel;
 
     try {
       const response = await fetch(targetUrl, {
@@ -251,6 +264,7 @@ export default function GeneralOpencode() {
       if (data.success) {
         showToast("AnythingLLM MCP Server registered successfully!", "success");
         fetchMCPConfig();
+        fetchOpencodeMcpStatus();
       } else {
         showToast(data.error || "Failed to register MCP server.", "error");
       }
@@ -458,27 +472,8 @@ export default function GeneralOpencode() {
           <div className="bg-theme-bg-primary rounded-xl p-5 border border-white/5 mt-6 flex flex-col gap-y-4">
             
             {/* Tabs */}
-            <div className="flex border-b border-white/10 pb-2 gap-x-4">
-              <button
-                onClick={() => setActiveTab("opencode")}
-                className={`pb-2 text-sm font-bold border-b-2 transition-all duration-200 ${
-                  activeTab === "opencode"
-                    ? "border-emerald-400 text-emerald-400"
-                    : "border-transparent text-theme-text-secondary hover:text-theme-text-primary"
-                }`}
-              >
-                OpenCode Agent Session
-              </button>
-              <button
-                onClick={() => setActiveTab("default-llm")}
-                className={`pb-2 text-sm font-bold border-b-2 transition-all duration-200 ${
-                  activeTab === "default-llm"
-                    ? "border-emerald-400 text-emerald-400"
-                    : "border-transparent text-theme-text-secondary hover:text-theme-text-primary"
-                }`}
-              >
-                Default LLM Provider Console
-              </button>
+            <div className="pb-2 text-sm font-bold text-emerald-400 border-b-2 border-emerald-400">
+              OpenCode Agent Session
             </div>
 
             {/* Model Override Option */}
@@ -493,16 +488,9 @@ export default function GeneralOpencode() {
                 onChange={(e) => setSelectedModel(e.target.value)}
                 className="bg-theme-bg-primary text-sm text-theme-text-primary px-3 py-2 rounded-lg border border-white/10 focus:border-emerald-500 focus:outline-none w-full cursor-pointer"
               >
-                <option value="default">
-                  Default AnythingLLM Model ({systemConfig?.model || "Not Loaded"})
-                </option>
-                {activeTab === "opencode" && (
-                  <>
-                    <option value="opencode/big-pickle">OpenCode Zen: Big Pickle (Free stealth model)</option>
-                    <option value="opencode/minimax-m2.5-free">OpenCode Zen: MiniMax M2.5 (Free)</option>
-                    <option value="opencode/deepseek-v4-flash-free">OpenCode Zen: DeepSeek V4 Flash (Free)</option>
-                  </>
-                )}
+                  <option value="opencode/big-pickle">OpenCode Zen: Big Pickle (Free stealth model)</option>
+                  <option value="opencode/minimax-m2.5-free">OpenCode Zen: MiniMax M2.5 (Free)</option>
+                  <option value="opencode/deepseek-v4-flash-free">OpenCode Zen: DeepSeek V4 Flash (Free)</option>
                 <option value="custom">Custom Model Path / ID</option>
               </select>
 
@@ -513,7 +501,7 @@ export default function GeneralOpencode() {
                     type="text"
                     value={customModel}
                     onChange={(e) => setCustomModel(e.target.value)}
-                    placeholder={activeTab === "opencode" ? "openai/gpt-4o or anthropic/claude-3-5-sonnet" : "gpt-4o"}
+                    placeholder="openai/gpt-4o or anthropic/claude-3-5-sonnet"
                     className="bg-theme-bg-primary text-sm text-theme-text-primary px-3 py-2 rounded-lg border border-white/10 focus:border-emerald-500 focus:outline-none w-full font-mono"
                   />
                 </div>
@@ -527,11 +515,7 @@ export default function GeneralOpencode() {
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder={
-                    activeTab === "opencode"
-                      ? "Describe what coding task OpenCode should perform, e.g. 'Add unit tests for utils.js'"
-                      : "Type a prompt to run directly against the AnythingLLM system default LLM..."
-                  }
+                  placeholder="Describe what coding task OpenCode should perform, e.g. 'Add unit tests for utils.js'"
                   rows={3}
                   className="bg-theme-bg-secondary text-sm text-theme-text-primary p-3 rounded-lg border border-white/10 focus:border-emerald-500 focus:outline-none w-full"
                 />
@@ -706,6 +690,69 @@ export default function GeneralOpencode() {
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* Live OpenCode MCP Server Status */}
+          <div className="bg-theme-bg-primary rounded-xl p-5 border border-white/5 mt-6 flex flex-col gap-y-4">
+            <div className="w-full pb-3 border-white/10 border-b flex justify-between items-center">
+              <div className="flex items-center gap-x-3">
+                <Plug className="h-5 w-5 text-emerald-400" />
+                <h3 className="font-bold text-theme-text-primary text-sm">OpenCode MCP Server Status</h3>
+              </div>
+              {opencodeMcpStatus && Object.keys(opencodeMcpStatus).length > 0 ? (
+                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  {Object.keys(opencodeMcpStatus).length} Server{Object.keys(opencodeMcpStatus).length !== 1 ? "s" : ""} Active
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded text-[10px] bg-white/5 text-theme-text-secondary border border-white/10">
+                  No Servers Registered
+                </span>
+              )}
+            </div>
+
+            {opencodeMcpStatus === null ? (
+              <div className="text-xs text-theme-text-secondary animate-pulse">Loading MCP server list...</div>
+            ) : Object.keys(opencodeMcpStatus).length === 0 ? (
+              <div className="flex flex-col items-center gap-y-3 py-6 text-theme-text-secondary">
+                <Plug className="h-8 w-8 opacity-30" />
+                <span className="text-xs">No MCP servers are currently registered in the OpenCode server.</span>
+                <span className="text-[11px] opacity-60">Use the "Register AnythingLLM MCP" button above or configure opencode.json manually.</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {Object.entries(opencodeMcpStatus).map(([name, info]) => (
+                  <div key={name} className="bg-theme-bg-secondary/50 rounded-lg border border-white/5 p-4 flex flex-col gap-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-theme-text-primary font-mono">{name}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] ${info.disabled ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"}`}>
+                        {info.disabled ? "Disabled" : "Active"}
+                      </span>
+                    </div>
+                    {info.description && (
+                      <span className="text-[11px] text-theme-text-secondary">{info.description}</span>
+                    )}
+                    {info.tools && Array.isArray(info.tools) && info.tools.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {info.tools.map((tool, i) => (
+                          <span key={i} className="px-1.5 py-0.5 rounded text-[10px] bg-white/5 text-theme-text-secondary border border-white/10 font-mono">
+                            {typeof tool === "string" ? tool : tool.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={fetchOpencodeMcpStatus}
+                className="flex items-center gap-x-1.5 px-3 py-1.5 text-[11px] text-theme-text-secondary hover:text-theme-text-primary border border-white/10 hover:border-white/20 rounded-lg transition-all duration-200"
+              >
+                <ArrowClockwise className="h-3.5 w-3.5" />
+                Refresh
+              </button>
+            </div>
           </div>
 
         </div>

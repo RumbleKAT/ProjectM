@@ -325,6 +325,47 @@ const WorkspaceChats = {
     }
   },
 
+  newChat: async function ({ workspaceId, prompt, status = "pending", apiSessionId = null }) {
+    try {
+      const chat = await prisma.workspace_chats.create({
+        data: {
+          workspaceId,
+          prompt,
+          status,
+          api_session_id: apiSessionId,
+        },
+      });
+      return chat;
+    } catch (error) {
+      console.error(error.message);
+      return null;
+    }
+  },
+
+  markComplete: async function (chatId, responseText) {
+    try {
+      return await prisma.workspace_chats.update({
+        where: { id: chatId },
+        data: { response: responseText, status: "completed" },
+      });
+    } catch (error) {
+      console.error(error.message);
+      return null;
+    }
+  },
+
+  markError: async function (chatId, errorMessage) {
+    try {
+      return await prisma.workspace_chats.update({
+        where: { id: chatId },
+        data: { response: errorMessage, status: "error" },
+      });
+    } catch (error) {
+      console.error(error.message);
+      return null;
+    }
+  },
+
   bulkCreate: async function (chatsData) {
     // TODO: Replace with createMany when we update prisma to latest version
     // The version of prisma that we are currently using does not support createMany with SQLite

@@ -36,6 +36,11 @@ class BackgroundService {
       timeout: "5m",
       interval: "8hr",
     },
+    {
+      name: "cleanup-temporary-workspaces",
+      timeout: "5m",
+      interval: "12hr",
+    },
   ];
 
   #memoryJobs = [

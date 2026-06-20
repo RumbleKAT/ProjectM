@@ -2,11 +2,14 @@
 
 The platform uses a sophisticated navigation system to manage user flow within the Telegram interface. Users can move between different entities like Workspaces, Threads, Sources, and Models.
 
-## Navigation Entities
-- **Workspaces**: High-level containers for projects.
-- **Threads**: Specific conversations or tasks within a Workspace.
-- **Sources**: The data sources used for RAG within a thread.
-- **Models**: The AI models available for interaction.
+## System Overview
+- [UI & Server Functionalities Overview](UI-Server-Features.md)
+- [Frontend Details](features/frontend/ui_details.md)
+- [Backend Details](features/backend/backend_details.md)
+- [Overviews](OVERVIEW.md)
+- [Telegram Bot](TELEGRAM_BOT.md)
+- [Telemetry](TELEMETRY.md)
+- [Vector Databases](VECTOR_DATABASES.md)
 
 ## Navigation Features
 - **Pagination**: Supports paginated lists for Workspaces, Threads, and Sources to handle large quantities of data.

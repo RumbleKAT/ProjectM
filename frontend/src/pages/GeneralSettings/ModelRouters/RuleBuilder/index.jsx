@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import ModelRouterAPI from "@/models/modelRouter";
 import { useModal } from "@/hooks/useModal";
 import showToast from "@/utils/toast";

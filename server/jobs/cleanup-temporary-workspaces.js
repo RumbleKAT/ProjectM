@@ -16,15 +16,23 @@ const { getVectorDbClass } = require("../utils/helpers");
 
     for (const ws of oldTempWorkspaces) {
       try {
-        await prisma.workspace_chats.deleteMany({ where: { workspaceId: ws.id } });
-        await prisma.workspace_documents.deleteMany({ where: { workspaceId: ws.id } });
-        await prisma.workspace_threads.deleteMany({ where: { workspaceId: ws.id } });
+        await prisma.workspace_chats.deleteMany({
+          where: { workspaceId: ws.id },
+        });
+        await prisma.workspace_documents.deleteMany({
+          where: { workspaceId: ws.id },
+        });
+        await prisma.workspace_threads.deleteMany({
+          where: { workspaceId: ws.id },
+        });
 
         try {
           const VectorDb = getVectorDbClass();
           await VectorDb["delete-namespace"]({ namespace: ws.slug });
         } catch (ve) {
-          log(`Failed to delete vector namespace for ${ws.slug}: ${ve.message}`);
+          log(
+            `Failed to delete vector namespace for ${ws.slug}: ${ve.message}`
+          );
         }
 
         await prisma.workspaces.delete({ where: { id: ws.id } });

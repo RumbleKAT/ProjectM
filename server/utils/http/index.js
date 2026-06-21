@@ -140,12 +140,20 @@ async function sendWebhook(url, payload) {
       port: parsed.port || (url.startsWith("https") ? 443 : 80),
       path: parsed.pathname + parsed.search,
       method: "POST",
-      headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data) },
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(data),
+      },
       timeout: 5000,
     };
-    const req = client.request(opts, (res) => { resolve(res.statusCode >= 200 && res.statusCode < 300); });
+    const req = client.request(opts, (res) => {
+      resolve(res.statusCode >= 200 && res.statusCode < 300);
+    });
     req.on("error", () => resolve(false));
-    req.on("timeout", () => { req.destroy(); resolve(false); });
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(false);
+    });
     req.write(data);
     req.end();
   });

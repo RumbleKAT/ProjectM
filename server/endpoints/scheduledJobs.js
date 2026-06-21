@@ -1,7 +1,10 @@
 const { ScheduledJob } = require("../models/scheduledJob");
 const { ScheduledJobRun } = require("../models/scheduledJobRun");
 const { validatedRequest } = require("../utils/middleware/validatedRequest");
-const { flexUserRoleValid, ROLES } = require("../utils/middleware/multiUserProtected");
+const {
+  flexUserRoleValid,
+  ROLES,
+} = require("../utils/middleware/multiUserProtected");
 const { reqBody, safeJsonParse } = require("../utils/http");
 const { BackgroundService } = require("../utils/BackgroundWorkers");
 const { Telemetry } = require("../models/telemetry");

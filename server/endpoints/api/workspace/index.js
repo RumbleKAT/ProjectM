@@ -29,12 +29,18 @@ async function findOrCreateWorkspace(workspaceName, sessionId, reset) {
     const existing = await prisma.workspaces.findFirst({ where: { slug } });
     if (existing) {
       if (reset) {
-        await WorkspaceChats.markThreadHistoryInvalidV2({ workspaceId: existing.id });
+        await WorkspaceChats.markThreadHistoryInvalidV2({
+          workspaceId: existing.id,
+        });
       }
       return existing;
     }
   }
-  const { workspace, message: errorMsg } = await Workspace.new(workspaceName, null, { isTemp: true });
+  const { workspace, message: errorMsg } = await Workspace.new(
+    workspaceName,
+    null,
+    { isTemp: true }
+  );
   if (!workspace) throw new Error(`Failed to create workspace: ${errorMsg}`);
   return workspace;
 }
@@ -274,11 +280,26 @@ function apiWorkspaceEndpoints(app) {
     [validApiKey],
     async (request, response) => {
       try {
-        const { workspaceName, message, mode = null, sessionId = null, attachments = [], reset = false } = reqBody(request);
-        if (!workspaceName?.trim()) return response.status(400).json({ error: "workspaceName is required" });
-        if (!message?.trim()) return response.status(400).json({ error: "message is required" });
+        const {
+          workspaceName,
+          message,
+          mode = null,
+          sessionId = null,
+          attachments = [],
+          reset = false,
+        } = reqBody(request);
+        if (!workspaceName?.trim())
+          return response
+            .status(400)
+            .json({ error: "workspaceName is required" });
+        if (!message?.trim())
+          return response.status(400).json({ error: "message is required" });
 
-        const workspace = await findOrCreateWorkspace(workspaceName, sessionId, reset);
+        const workspace = await findOrCreateWorkspace(
+          workspaceName,
+          sessionId,
+          reset
+        );
         const result = await ApiChatHandler.chatSync({
           workspace,
           message,
@@ -310,11 +331,27 @@ function apiWorkspaceEndpoints(app) {
     [validApiKey],
     async (request, response) => {
       try {
-        const { workspaceName, message, mode = null, sessionId = null, attachments = [], reset = false, webhookUrl } = reqBody(request);
-        if (!workspaceName?.trim()) return response.status(400).json({ error: "workspaceName is required" });
-        if (!message?.trim()) return response.status(400).json({ error: "message is required" });
+        const {
+          workspaceName,
+          message,
+          mode = null,
+          sessionId = null,
+          attachments = [],
+          reset = false,
+          webhookUrl,
+        } = reqBody(request);
+        if (!workspaceName?.trim())
+          return response
+            .status(400)
+            .json({ error: "workspaceName is required" });
+        if (!message?.trim())
+          return response.status(400).json({ error: "message is required" });
 
-        const workspace = await findOrCreateWorkspace(workspaceName, sessionId, reset);
+        const workspace = await findOrCreateWorkspace(
+          workspaceName,
+          sessionId,
+          reset
+        );
         const result = await ApiChatHandler.chatAsync({
           workspace,
           message,
@@ -339,8 +376,11 @@ function apiWorkspaceEndpoints(app) {
     [validApiKey],
     async (request, response) => {
       try {
-        const chat = await WorkspaceChats.get({ id: Number(request.params.chatId) });
-        if (!chat) return response.status(404).json({ error: "Chat not found" });
+        const chat = await WorkspaceChats.get({
+          id: Number(request.params.chatId),
+        });
+        if (!chat)
+          return response.status(404).json({ error: "Chat not found" });
         return response.status(200).json({
           chatId: chat.id,
           status: chat.status,

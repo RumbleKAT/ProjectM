@@ -861,7 +861,15 @@ async function streamChat({
   return;
 }
 
-async function chatAsync({ workspace, message, mode, attachments, sessionId, apiSessionId, webhookUrl }) {
+async function chatAsync({
+  workspace,
+  message,
+  mode,
+  attachments,
+  sessionId,
+  apiSessionId,
+  webhookUrl,
+}) {
   const { WorkspaceChats } = require("../../models/workspaceChats");
   const { sendWebhook } = require("../../utils/http");
 

@@ -325,7 +325,12 @@ const WorkspaceChats = {
     }
   },
 
-  newChat: async function ({ workspaceId, prompt, status = "pending", apiSessionId = null }) {
+  newChat: async function ({
+    workspaceId,
+    prompt,
+    status = "pending",
+    apiSessionId = null,
+  }) {
     try {
       const chat = await prisma.workspace_chats.create({
         data: {

@@ -214,7 +214,7 @@ export default function AdminBudget() {
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between gap-x-4 pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between gap-x-4 pt-4 mt-2 border-t border-white/5">
                   <button
                     type="button"
                     onClick={handleResetBudget}
@@ -225,7 +225,7 @@ export default function AdminBudget() {
                     Reset Monthly Cost
                   </button>
 
-                  <CTAButton type="submit" disabled={updating}>
+                  <CTAButton type="submit" disabled={updating} className="mr-0">
                     Save Settings
                   </CTAButton>
                 </div>

@@ -1,9 +1,20 @@
 const prisma = require("../utils/prisma");
 const { log, conclude } = require("./helpers/index.js");
 const { getVectorDbClass } = require("../utils/helpers");
+const { SystemSettings } = require("../models/systemSettings");
 
 (async () => {
   try {
+    const cleanupEnabled = await SystemSettings.getValueOrFallback(
+      { label: "temp_workspace_cleanup_enabled" },
+      "true"
+    );
+    if (cleanupEnabled !== "true") {
+      log("Temporary workspace cleanup is disabled. Skipping cleanup job.");
+      conclude();
+      return;
+    }
+
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const oldTempWorkspaces = await prisma.workspaces.findMany({
       where: {

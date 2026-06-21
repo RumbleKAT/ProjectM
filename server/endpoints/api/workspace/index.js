@@ -24,7 +24,23 @@ const {
 const prisma = require("../../../utils/prisma");
 
 async function findOrCreateWorkspace(workspaceName, sessionId, reset) {
-  const slug = `temp-${Workspace.slugify(workspaceName, { lower: true })}`;
+  const regularSlug = Workspace.slugify(workspaceName, { lower: true });
+
+  // 1. Try to find a regular workspace first
+  const regularWorkspace = await prisma.workspaces.findFirst({
+    where: { slug: regularSlug },
+  });
+  if (regularWorkspace) {
+    if (sessionId && reset) {
+      await WorkspaceChats.markThreadHistoryInvalidV2({
+        workspaceId: regularWorkspace.id,
+      });
+    }
+    return regularWorkspace;
+  }
+
+  // 2. Fallback to temp workspace lookup/creation
+  const slug = `temp-${regularSlug}`;
   if (sessionId) {
     const existing = await prisma.workspaces.findFirst({ where: { slug } });
     if (existing) {

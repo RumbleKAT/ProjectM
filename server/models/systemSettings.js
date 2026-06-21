@@ -70,6 +70,7 @@ const SystemSettings = {
     "memory_auto_extraction",
     "inactive_chat_retention_days",
     "inactive_workspace_retention_days",
+    "temp_workspace_cleanup_enabled",
   ],
   supportedFields: [
     "logo_filename",
@@ -111,6 +112,7 @@ const SystemSettings = {
     "memory_auto_extraction",
     "inactive_chat_retention_days",
     "inactive_workspace_retention_days",
+    "temp_workspace_cleanup_enabled",
   ],
   validations: {
     footer_data: (updates) => {
@@ -169,6 +171,18 @@ const SystemSettings = {
           e.message
         );
         return 30;
+      }
+    },
+    temp_workspace_cleanup_enabled: (update) => {
+      try {
+        const enabled = String(update) === "true";
+        return String(enabled);
+      } catch (e) {
+        console.error(
+          `Failed to run validation function on temp_workspace_cleanup_enabled`,
+          e.message
+        );
+        return "true";
       }
     },
     text_splitter_chunk_overlap: (update) => {

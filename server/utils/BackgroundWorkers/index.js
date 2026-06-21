@@ -150,10 +150,14 @@ class BackgroundService {
     const {
       buildCleanupInactiveChatThreadsDefinition,
     } = require("../../systemJobs/definitions/cleanupInactiveChatThreads");
+    const {
+      buildCleanupInactiveWorkspacesDefinition,
+    } = require("../../systemJobs/definitions/cleanupInactiveWorkspaces");
 
     try {
       const systemJobRegistry = registry.createRegistry([
         buildCleanupInactiveChatThreadsDefinition(),
+        buildCleanupInactiveWorkspacesDefinition(),
       ]);
       await SystemJobConfig.syncDefinitions(systemJobRegistry.all());
       await SystemJobRun.failOrphanedRuns();
@@ -476,10 +480,14 @@ class BackgroundService {
     const {
       buildCleanupInactiveChatThreadsDefinition,
     } = require("../../systemJobs/definitions/cleanupInactiveChatThreads");
+    const {
+      buildCleanupInactiveWorkspacesDefinition,
+    } = require("../../systemJobs/definitions/cleanupInactiveWorkspaces");
 
     try {
       const systemJobRegistry = registry.createRegistry([
         buildCleanupInactiveChatThreadsDefinition(),
+        buildCleanupInactiveWorkspacesDefinition(),
       ]);
       const definition = systemJobRegistry.get(jobKey);
       if (!definition) return;
@@ -515,10 +523,14 @@ class BackgroundService {
     const {
       buildCleanupInactiveChatThreadsDefinition,
     } = require("../../systemJobs/definitions/cleanupInactiveChatThreads");
+    const {
+      buildCleanupInactiveWorkspacesDefinition,
+    } = require("../../systemJobs/definitions/cleanupInactiveWorkspaces");
 
     try {
       const systemJobRegistry = registry.createRegistry([
         buildCleanupInactiveChatThreadsDefinition(),
+        buildCleanupInactiveWorkspacesDefinition(),
       ]);
       const definition = systemJobRegistry.get(jobKey);
       if (!definition) return null;

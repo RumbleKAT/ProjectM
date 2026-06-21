@@ -68,6 +68,8 @@ const SystemSettings = {
     "meta_page_favicon",
     "memory_enabled",
     "memory_auto_extraction",
+    "inactive_chat_retention_days",
+    "inactive_workspace_retention_days",
   ],
   supportedFields: [
     "logo_filename",
@@ -107,6 +109,8 @@ const SystemSettings = {
     // Memory/Personalization
     "memory_enabled",
     "memory_auto_extraction",
+    "inactive_chat_retention_days",
+    "inactive_workspace_retention_days",
   ],
   validations: {
     footer_data: (updates) => {
@@ -133,6 +137,38 @@ const SystemSettings = {
           e.message
         );
         return 1000;
+      }
+    },
+    inactive_chat_retention_days: (update) => {
+      try {
+        if (isNullOrNaN(update)) throw new Error("Value is not a number");
+        const days = Number(update);
+        if (![1, 7, 30].includes(days)) {
+          throw new Error("Value must be 1, 7, or 30 days");
+        }
+        return days;
+      } catch (e) {
+        console.error(
+          `Failed to run validation function on inactive_chat_retention_days`,
+          e.message
+        );
+        return 30;
+      }
+    },
+    inactive_workspace_retention_days: (update) => {
+      try {
+        if (isNullOrNaN(update)) throw new Error("Value is not a number");
+        const days = Number(update);
+        if (![1, 7, 30].includes(days)) {
+          throw new Error("Value must be 1, 7, or 30 days");
+        }
+        return days;
+      } catch (e) {
+        console.error(
+          `Failed to run validation function on inactive_workspace_retention_days`,
+          e.message
+        );
+        return 30;
       }
     },
     text_splitter_chunk_overlap: (update) => {

@@ -1547,11 +1547,27 @@ const TRANSLATIONS = {
     systemJobs: {
       emptyTitle: "등록된 시스템 작업이 없습니다.",
       emptySubtitle: "개발자 시스템 작업이 올바르게 등록되었는지 확인하세요.",
+      retention: {
+        title: "오래된 대화방 자동 삭제 설정",
+        description:
+          "비활성 상태로 일정 기간이 지난 대화방을 자동으로 삭제합니다. 이 작업은 매일 실행됩니다.",
+        oneDay: "1일",
+        oneWeek: "1주일",
+        oneMonth: "1달",
+      },
+      workspaceRetention: {
+        title: "오래된 워크스페이스 자동 삭제 설정",
+        description:
+          "비활성 상태로 일정 기간이 지난 워크스페이스를 자동으로 삭제합니다. 이 작업은 매일 실행됩니다.",
+      },
       toast: {
         toggled: "시스템 작업 상태가 업데이트되었습니다.",
         triggered: "시스템 작업이 성공적으로 시작되었습니다.",
         triggerFailed: "시스템 작업 실행 실패",
         triggerSkipped: "이 시스템 작업은 이미 실행 중입니다.",
+        retentionSaved: "자동 삭제 기간이 성공적으로 업데이트되었습니다.",
+        workspaceRetentionSaved:
+          "자동 워크스페이스 삭제 기간이 성공적으로 업데이트되었습니다.",
       },
     },
     title: "예정된 작업",

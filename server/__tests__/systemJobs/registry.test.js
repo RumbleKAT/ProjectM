@@ -322,7 +322,7 @@ describe("cleanup inactive chat threads definition", () => {
       description: expect.stringContaining("30 days"),
       schedule: "0 3 * * *",
       timeoutMs: 10 * 60 * 1000,
-      enabledByDefault: false,
+      enabledByDefault: true,
       handler: path.resolve(
         __dirname,
         "../../systemJobs/handlers/cleanupInactiveChatThreads.js"

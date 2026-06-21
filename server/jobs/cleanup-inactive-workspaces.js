@@ -2,10 +2,10 @@ const { log, conclude } = require("./helpers/index.js");
 const { SystemJobConfig } = require("../models/systemJobConfig");
 const { SystemJobRun } = require("../models/systemJobRun");
 const { SystemSettings } = require("../models/systemSettings");
-const cleanupInactiveChatThreads = require("../systemJobs/handlers/cleanupInactiveChatThreads");
+const cleanupInactiveWorkspaces = require("../systemJobs/handlers/cleanupInactiveWorkspaces");
 
 (async () => {
-  const jobKey = "cleanup-inactive-chat-threads";
+  const jobKey = "cleanup-inactive-workspaces";
   const config = await SystemJobConfig.get(jobKey);
   if (!config) {
     log("Job config not found - exiting.");
@@ -43,13 +43,13 @@ const cleanupInactiveChatThreads = require("../systemJobs/handlers/cleanupInacti
 
   try {
     const retentionSetting = await SystemSettings.get({
-      label: "inactive_chat_retention_days",
+      label: "inactive_workspace_retention_days",
     });
     const retentionDays = retentionSetting
       ? Number(retentionSetting.value)
-      : Number(process.env.INACTIVE_CHAT_RETENTION_DAYS) || 30;
+      : Number(process.env.INACTIVE_WORKSPACE_RETENTION_DAYS) || 30;
 
-    const result = await cleanupInactiveChatThreads({
+    const result = await cleanupInactiveWorkspaces({
       options: {
         retentionDays,
         batchSize: 100,

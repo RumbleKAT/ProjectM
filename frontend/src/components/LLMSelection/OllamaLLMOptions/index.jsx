@@ -19,6 +19,7 @@ export default function OllamaLLMOptions({ settings }) {
   } = useProviderEndpointAutoDiscovery({
     provider: "ollama",
     initialBasePath: settings?.OllamaLLMBasePath,
+    initialAuthToken: settings?.OllamaLLMAuthToken,
     ENDPOINTS: OLLAMA_COMMON_URLS,
   });
   const [maxTokens, setMaxTokens] = useState(
@@ -101,7 +102,7 @@ export default function OllamaLLMOptions({ settings }) {
                 name="OllamaLLMBasePath"
                 className="border-none bg-theme-settings-input-bg text-white placeholder:text-theme-settings-input-placeholder text-sm rounded-lg focus:outline-primary-button active:outline-primary-button outline-none block w-full p-2.5"
                 placeholder="http://127.0.0.1:11434"
-                value={basePathValue.value}
+                value={basePathValue.value || ""}
                 required={true}
                 autoComplete="off"
                 spellCheck={false}
@@ -258,10 +259,7 @@ export default function OllamaLLMOptions({ settings }) {
                 name="OllamaLLMAuthToken"
                 className="border-none bg-theme-settings-input-bg text-white placeholder:text-theme-settings-input-placeholder text-sm rounded-lg outline-none block w-full p-2.5 focus:outline-primary-button active:outline-primary-button"
                 placeholder="Ollama Auth Token"
-                defaultValue={
-                  settings?.OllamaLLMAuthToken ? "*".repeat(20) : ""
-                }
-                value={authTokenValue.value}
+                value={authTokenValue.value || ""}
                 onChange={authToken.onChange}
                 onBlur={authToken.onBlur}
                 required={false}

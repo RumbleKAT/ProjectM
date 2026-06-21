@@ -4,6 +4,9 @@ const cronValidate = require("cron-validate").default;
 const {
   buildCleanupInactiveChatThreadsDefinition,
 } = require("./definitions/cleanupInactiveChatThreads");
+const {
+  buildCleanupInactiveWorkspacesDefinition,
+} = require("./definitions/cleanupInactiveWorkspaces");
 
 function isNonemptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -225,7 +228,10 @@ function createRegistry(definitions) {
 }
 
 function createDefaultRegistry() {
-  return createRegistry([buildCleanupInactiveChatThreadsDefinition()]);
+  return createRegistry([
+    buildCleanupInactiveChatThreadsDefinition(),
+    buildCleanupInactiveWorkspacesDefinition(),
+  ]);
 }
 
 module.exports = { createDefaultRegistry, createRegistry };

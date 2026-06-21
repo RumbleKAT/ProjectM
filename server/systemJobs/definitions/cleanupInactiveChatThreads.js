@@ -29,7 +29,7 @@ function buildCleanupInactiveChatThreadsDefinition(env = process.env) {
     description: `Permanently deletes chat threads inactive for at least ${retentionDays} days.`,
     schedule: env.CLEANUP_INACTIVE_CHAT_THREADS_CRON || DEFAULT_SCHEDULE,
     timeoutMs: 10 * 60 * 1000,
-    enabledByDefault: false,
+    enabledByDefault: true,
     handler: path.resolve(
       __dirname,
       "../handlers/cleanupInactiveChatThreads.js"

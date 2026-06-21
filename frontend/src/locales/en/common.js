@@ -1741,11 +1741,27 @@ const TRANSLATIONS = {
     systemJobs: {
       emptyTitle: "No System Jobs registered",
       emptySubtitle: "Ensure developer system jobs are correctly registered.",
+      retention: {
+        title: "Auto-delete Old Chat Rooms",
+        description:
+          "Automatically delete chat rooms that have been inactive for a certain period of time. This job runs daily.",
+        oneDay: "1 Day",
+        oneWeek: "1 Week",
+        oneMonth: "1 Month",
+      },
+      workspaceRetention: {
+        title: "Auto-delete Old Workspaces",
+        description:
+          "Automatically delete workspaces that have been inactive for a certain period of time. This job runs daily.",
+      },
       toast: {
         toggled: "System job status updated",
         triggered: "System job triggered successfully",
         triggerFailed: "Failed to trigger system job",
         triggerSkipped: "A run is already in progress for this system job",
+        retentionSaved: "Auto-delete retention period updated successfully.",
+        workspaceRetentionSaved:
+          "Auto-delete workspace retention period updated successfully.",
       },
     },
     title: "Scheduled Jobs",

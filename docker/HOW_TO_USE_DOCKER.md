@@ -93,16 +93,47 @@ RumbleKAT/project-m;
 
 ```yaml
 version: '3.8'
+
+networks:
+  anything-llm:
+    driver: bridge
+
 services:
+  opencode-server:
+    container_name: opencode-server
+    image: vinnyahh/opencode-box:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4096:4096"
+    environment:
+      - OPENCODE_ALLOWED_ORIGINS=*
+      - OPENCODE_PORT=4096
+      - OPENCODE_HOSTNAME=0.0.0.0
+      - OPENCODE_PROJECT_DIR=/projects
+    entrypoint: ["opencode", "serve", "--hostname=0.0.0.0", "--port=4096"]
+    volumes:
+      - opencode_data:/root/.local/share/opencode
+      - /path/on/local/disk:/projects
+    networks:
+      - anything-llm
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4096/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   anythingllm:
     image: RumbleKAT/project-m
     container_name: anythingllm
     ports:
-    - "3001:3001"
+      - "3001:3001"
     cap_add:
       - SYS_ADMIN
+    depends_on:
+      opencode-server:
+        condition: service_healthy
     environment:
-    # Adjust for your environment
+      # Adjust for your environment
       - STORAGE_DIR=/app/server/storage
       - JWT_SECRET="make this a large list of random numbers and letters 20+"
       - LLM_PROVIDER=ollama
@@ -117,13 +148,18 @@ services:
       - WHISPER_PROVIDER=local
       - TTS_PROVIDER=native
       - PASSWORDMINCHAR=8
+      - OPENCODE_DISABLE_AUTO_START=true
+      - OPENCODE_SERVER_URL=http://opencode-server:4096
       # Add any other keys here for services or settings
       # you can find in the docker/.env.example file
     volumes:
       - anythingllm_storage:/app/server/storage
     restart: always
+    networks:
+      - anything-llm
 
 volumes:
+  opencode_data:
   anythingllm_storage:
     driver: local
     driver_opts:

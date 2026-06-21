@@ -129,6 +129,36 @@ function decodeHtmlEntities(str) {
     .replace(/&amp;/g, "&");
 }
 
+async function sendWebhook(url, payload) {
+  if (!url) return false;
+  const client = url.startsWith("https") ? require("https") : require("http");
+  return new Promise((resolve) => {
+    const data = JSON.stringify(payload);
+    const parsed = new URL(url);
+    const opts = {
+      hostname: parsed.hostname,
+      port: parsed.port || (url.startsWith("https") ? 443 : 80),
+      path: parsed.pathname + parsed.search,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(data),
+      },
+      timeout: 5000,
+    };
+    const req = client.request(opts, (res) => {
+      resolve(res.statusCode >= 200 && res.statusCode < 300);
+    });
+    req.on("error", () => resolve(false));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(false);
+    });
+    req.write(data);
+    req.end();
+  });
+}
+
 module.exports = {
   reqBody,
   multiUserMode,
@@ -141,4 +171,5 @@ module.exports = {
   isValidUrl,
   toValidNumber,
   decodeHtmlEntities,
+  sendWebhook,
 };

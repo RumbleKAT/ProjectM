@@ -365,11 +365,8 @@ function opencodeEndpoints(app) {
     [validatedRequest, flexUserRoleValid([ROLES.all])],
     async (request, response) => {
       try {
-        const {
-          apiKey,
-          anythingllmUrl = "http://localhost:3001",
-          type = "project",
-        } = reqBody(request);
+        const { apiKey, anythingllmUrl = "http://localhost:3001" } =
+          reqBody(request);
 
         let finalApiKey = apiKey;
         if (apiKey === "generate") {

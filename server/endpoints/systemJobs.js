@@ -1,5 +1,6 @@
 const { SystemJobConfig } = require("../models/systemJobConfig");
 const { SystemJobRun } = require("../models/systemJobRun");
+const { SystemSettings } = require("../models/systemSettings");
 const { validatedRequest } = require("../utils/middleware/validatedRequest");
 const { flexUserRoleValid } = require("../utils/middleware/multiUserProtected");
 const { ROLES } = require("../utils/middleware/multiUserProtected");
@@ -7,6 +8,9 @@ const registry = require("../systemJobs/registry");
 const {
   buildCleanupInactiveChatThreadsDefinition,
 } = require("../systemJobs/definitions/cleanupInactiveChatThreads");
+const {
+  buildCleanupInactiveWorkspacesDefinition,
+} = require("../systemJobs/definitions/cleanupInactiveWorkspaces");
 const { BackgroundService } = require("../utils/BackgroundWorkers");
 const prisma = require("../utils/prisma");
 
@@ -17,6 +21,7 @@ function systemJobsEndpoints(app) {
 
   const systemJobRegistry = registry.createRegistry([
     buildCleanupInactiveChatThreadsDefinition(),
+    buildCleanupInactiveWorkspacesDefinition(),
   ]);
 
   // GET /system-jobs
@@ -34,10 +39,30 @@ function systemJobsEndpoints(app) {
             { queuedAt: "desc" }
           );
           const latestRun = latestRuns[0] || null;
+
+          let description = definition.description;
+          if (definition.key === "cleanup-inactive-chat-threads") {
+            const retentionSetting = await SystemSettings.get({
+              label: "inactive_chat_retention_days",
+            });
+            const retentionDays = retentionSetting
+              ? Number(retentionSetting.value)
+              : Number(process.env.INACTIVE_CHAT_RETENTION_DAYS) || 30;
+            description = `Permanently deletes chat threads inactive for at least ${retentionDays} days.`;
+          } else if (definition.key === "cleanup-inactive-workspaces") {
+            const retentionSetting = await SystemSettings.get({
+              label: "inactive_workspace_retention_days",
+            });
+            const retentionDays = retentionSetting
+              ? Number(retentionSetting.value)
+              : Number(process.env.INACTIVE_WORKSPACE_RETENTION_DAYS) || 30;
+            description = `Permanently deletes workspaces inactive for at least ${retentionDays} days.`;
+          }
+
           jobs.push({
             key: definition.key,
             name: definition.name,
-            description: definition.description,
+            description,
             schedule: definition.schedule,
             enabled: config ? config.enabled : false,
             lastRunAt: config?.lastRunAt,

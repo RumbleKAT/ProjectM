@@ -350,7 +350,7 @@ export default function DeveloperApi() {
     });
   }, []);
 
-  function useApiKey(secret) {
+  function applyApiKey(secret) {
     const next = headers.filter((h) => h.key.toLowerCase() !== "authorization");
     next.push({ key: "Authorization", value: `Bearer ${secret}` });
     setHeaders(next);
@@ -448,7 +448,7 @@ export default function DeveloperApi() {
                   {apiKeys.map((key) => (
                     <button
                       key={key.id}
-                      onClick={() => useApiKey(key.secret)}
+                      onClick={() => applyApiKey(key.secret)}
                       className="flex items-center gap-x-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded text-xs border border-zinc-700"
                       title="Click to set as Authorization header"
                     >

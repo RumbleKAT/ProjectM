@@ -21,6 +21,29 @@ const { getModelTag } = require("../../utils");
 const {
   workspaceDeletionProtection,
 } = require("../../../utils/middleware/workspaceDeletionProtection");
+const prisma = require("../../../utils/prisma");
+
+async function findOrCreateWorkspace(workspaceName, sessionId, reset) {
+  const slug = `temp-${Workspace.slugify(workspaceName, { lower: true })}`;
+  if (sessionId) {
+    const existing = await prisma.workspaces.findFirst({ where: { slug } });
+    if (existing) {
+      if (reset) {
+        await WorkspaceChats.markThreadHistoryInvalidV2({
+          workspaceId: existing.id,
+        });
+      }
+      return existing;
+    }
+  }
+  const { workspace, message: errorMsg } = await Workspace.new(
+    workspaceName,
+    null,
+    { isTemp: true }
+  );
+  if (!workspace) throw new Error(`Failed to create workspace: ${errorMsg}`);
+  return workspace;
+}
 
 function apiWorkspaceEndpoints(app) {
   if (!app) return;
@@ -247,6 +270,124 @@ function apiWorkspaceEndpoints(app) {
           close: true,
           error: e.message,
         });
+      }
+    }
+  );
+
+  // Sync Chat — auto-create temp workspace, respond immediately
+  app.post(
+    "/v1/workspace/chat-sync",
+    [validApiKey],
+    async (request, response) => {
+      try {
+        const {
+          workspaceName,
+          message,
+          mode = null,
+          sessionId = null,
+          attachments = [],
+          reset = false,
+        } = reqBody(request);
+        if (!workspaceName?.trim())
+          return response
+            .status(400)
+            .json({ error: "workspaceName is required" });
+        if (!message?.trim())
+          return response.status(400).json({ error: "message is required" });
+
+        const workspace = await findOrCreateWorkspace(
+          workspaceName,
+          sessionId,
+          reset
+        );
+        const result = await ApiChatHandler.chatSync({
+          workspace,
+          message,
+          mode: mode || "chat",
+          attachments: attachments || [],
+          user: null,
+          thread: null,
+          sessionId: !!sessionId ? String(sessionId) : null,
+          reset,
+        });
+
+        return response.status(200).json({
+          success: true,
+          response: result.textResponse,
+          workspaceName: workspace.slug,
+          sources: result.sources || [],
+          chatId: result.chatId || null,
+        });
+      } catch (e) {
+        console.error("chat-sync error:", e.message);
+        return response.status(500).json({ success: false, error: e.message });
+      }
+    }
+  );
+
+  // Async Chat — returns immediately with chatId, processes in background
+  app.post(
+    "/v1/workspace/chat-async",
+    [validApiKey],
+    async (request, response) => {
+      try {
+        const {
+          workspaceName,
+          message,
+          mode = null,
+          sessionId = null,
+          attachments = [],
+          reset = false,
+          webhookUrl,
+        } = reqBody(request);
+        if (!workspaceName?.trim())
+          return response
+            .status(400)
+            .json({ error: "workspaceName is required" });
+        if (!message?.trim())
+          return response.status(400).json({ error: "message is required" });
+
+        const workspace = await findOrCreateWorkspace(
+          workspaceName,
+          sessionId,
+          reset
+        );
+        const result = await ApiChatHandler.chatAsync({
+          workspace,
+          message,
+          mode: mode || "chat",
+          attachments: attachments || [],
+          sessionId,
+          apiSessionId: request.auth?.id || null,
+          webhookUrl,
+        });
+
+        return response.status(202).json({ success: true, ...result });
+      } catch (e) {
+        console.error("chat-async error:", e.message);
+        return response.status(500).json({ success: false, error: e.message });
+      }
+    }
+  );
+
+  // Status polling for async chats
+  app.get(
+    "/v1/workspace/chat-async/status/:chatId",
+    [validApiKey],
+    async (request, response) => {
+      try {
+        const chat = await WorkspaceChats.get({
+          id: Number(request.params.chatId),
+        });
+        if (!chat)
+          return response.status(404).json({ error: "Chat not found" });
+        return response.status(200).json({
+          chatId: chat.id,
+          status: chat.status,
+          response: chat.status === "completed" ? chat.response : undefined,
+        });
+      } catch (e) {
+        return response.status(500).json({ error: e.message });
       }
     }
   );

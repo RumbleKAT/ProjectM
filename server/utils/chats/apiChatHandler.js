@@ -861,7 +861,64 @@ async function streamChat({
   return;
 }
 
+async function chatAsync({
+  workspace,
+  message,
+  mode,
+  attachments,
+  sessionId,
+  apiSessionId,
+  webhookUrl,
+}) {
+  const { WorkspaceChats } = require("../../models/workspaceChats");
+  const { sendWebhook } = require("../../utils/http");
+
+  const chat = await WorkspaceChats.newChat({
+    workspaceId: workspace.id,
+    prompt: message,
+    status: "pending",
+    apiSessionId: apiSessionId || sessionId,
+  });
+
+  if (!chat) throw new Error("Failed to create pending chat record");
+
+  process.nextTick(async () => {
+    try {
+      const result = await chatSync({
+        workspace,
+        message,
+        mode: mode || "chat",
+        attachments: attachments || [],
+        user: null,
+        thread: null,
+        sessionId: sessionId || null,
+        reset: false,
+      });
+      const responseText = result.textResponse || "";
+      await WorkspaceChats.markComplete(chat.id, responseText);
+      await sendWebhook(webhookUrl, {
+        chatId: chat.id,
+        status: "completed",
+        response: responseText,
+        workspaceName: workspace.slug,
+        sources: result.sources || [],
+      });
+    } catch (e) {
+      await WorkspaceChats.markError(chat.id, e.message);
+      await sendWebhook(webhookUrl, {
+        chatId: chat.id,
+        status: "error",
+        error: e.message,
+        workspaceName: workspace.slug,
+      });
+    }
+  });
+
+  return { chatId: chat.id, status: "pending", workspaceName: workspace.slug };
+}
+
 module.exports.ApiChatHandler = {
   chatSync,
   streamChat,
+  chatAsync,
 };

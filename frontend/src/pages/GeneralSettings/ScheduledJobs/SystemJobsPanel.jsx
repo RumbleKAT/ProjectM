@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import SystemJobs from "@/models/systemJobs";
+import Admin from "@/models/admin";
 import usePolling from "@/hooks/usePolling";
 import showToast from "@/utils/toast";
 import SystemJobRow from "./components/SystemJobRow";
@@ -9,6 +10,10 @@ export default function SystemJobsPanel() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState([]);
+  const [retentionDays, setRetentionDays] = useState(30);
+  const [workspaceRetentionDays, setWorkspaceRetentionDays] = useState(30);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [savingWorkspaceSettings, setSavingWorkspaceSettings] = useState(false);
 
   const fetchJobs = async () => {
     const { jobs: foundJobs } = await SystemJobs.list();
@@ -16,8 +21,28 @@ export default function SystemJobsPanel() {
     setLoading(false);
   };
 
+  const fetchRetentionDays = async () => {
+    try {
+      const { settings } = await Admin.systemPreferencesByFields([
+        "inactive_chat_retention_days",
+        "inactive_workspace_retention_days",
+      ]);
+      if (settings?.inactive_chat_retention_days !== undefined) {
+        setRetentionDays(Number(settings.inactive_chat_retention_days));
+      }
+      if (settings?.inactive_workspace_retention_days !== undefined) {
+        setWorkspaceRetentionDays(
+          Number(settings.inactive_workspace_retention_days)
+        );
+      }
+    } catch (e) {
+      console.error("Failed to fetch retention days setting", e);
+    }
+  };
+
   useEffect(() => {
     fetchJobs();
+    fetchRetentionDays();
   }, []);
 
   usePolling(fetchJobs, 5000);
@@ -54,6 +79,58 @@ export default function SystemJobsPanel() {
     fetchJobs();
   };
 
+  const handleUpdateRetention = async (days) => {
+    setSavingSettings(true);
+    const result = await Admin.updateSystemPreferences({
+      inactive_chat_retention_days: Number(days),
+    });
+    setSavingSettings(false);
+    if (result?.success) {
+      setRetentionDays(Number(days));
+      showToast(
+        t(
+          "scheduledJobs.systemJobs.toast.retentionSaved",
+          "Auto-delete retention period updated successfully."
+        ),
+        "success",
+        { clear: true }
+      );
+      fetchJobs();
+    } else {
+      showToast(
+        result?.error || "Failed to update retention period.",
+        "error",
+        { clear: true }
+      );
+    }
+  };
+
+  const handleUpdateWorkspaceRetention = async (days) => {
+    setSavingWorkspaceSettings(true);
+    const result = await Admin.updateSystemPreferences({
+      inactive_workspace_retention_days: Number(days),
+    });
+    setSavingWorkspaceSettings(false);
+    if (result?.success) {
+      setWorkspaceRetentionDays(Number(days));
+      showToast(
+        t(
+          "scheduledJobs.systemJobs.toast.workspaceRetentionSaved",
+          "Auto-delete workspace retention period updated successfully."
+        ),
+        "success",
+        { clear: true }
+      );
+      fetchJobs();
+    } else {
+      showToast(
+        result?.error || "Failed to update workspace retention period.",
+        "error",
+        { clear: true }
+      );
+    }
+  };
+
   if (loading) {
     return (
       <div className="w-full flex items-center justify-center text-zinc-400 light:text-slate-600 text-sm pt-8">
@@ -62,8 +139,103 @@ export default function SystemJobsPanel() {
     );
   }
 
+  const hasCleanupJob = jobs.some(
+    (job) => job.key === "cleanup-inactive-chat-threads"
+  );
+  const hasWorkspaceCleanupJob = jobs.some(
+    (job) => job.key === "cleanup-inactive-workspaces"
+  );
+
   return (
     <div className="pt-8">
+      {(hasCleanupJob || hasWorkspaceCleanupJob) && (
+        <div className="flex flex-col md:flex-row gap-6 mb-6">
+          {hasCleanupJob && (
+            <div className="flex-1 p-6 rounded-xl bg-white/5 light:bg-slate-50 border border-white/10 light:border-slate-200">
+              <div className="flex flex-col gap-y-1">
+                <h3 className="text-sm font-semibold text-white light:text-slate-900">
+                  {t(
+                    "scheduledJobs.systemJobs.retention.title",
+                    "Auto-delete Old Chat Rooms"
+                  )}
+                </h3>
+                <p className="text-xs text-zinc-400 light:text-slate-600 mb-4">
+                  {t(
+                    "scheduledJobs.systemJobs.retention.description",
+                    "Automatically delete chat rooms that have been inactive for a certain period of time. This job runs daily."
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-x-4">
+                <select
+                  value={retentionDays}
+                  onChange={(e) =>
+                    handleUpdateRetention(Number(e.target.value))
+                  }
+                  disabled={savingSettings}
+                  className="border-none bg-theme-settings-input-bg text-white placeholder:text-theme-settings-input-placeholder text-sm rounded-lg focus:outline-primary-button active:outline-primary-button outline-none block w-fit py-2 px-4 cursor-pointer"
+                >
+                  <option value={1}>
+                    {t("scheduledJobs.systemJobs.retention.oneDay", "1 Day")}
+                  </option>
+                  <option value={7}>
+                    {t("scheduledJobs.systemJobs.retention.oneWeek", "1 Week")}
+                  </option>
+                  <option value={30}>
+                    {t(
+                      "scheduledJobs.systemJobs.retention.oneMonth",
+                      "1 Month"
+                    )}
+                  </option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {hasWorkspaceCleanupJob && (
+            <div className="flex-1 p-6 rounded-xl bg-white/5 light:bg-slate-50 border border-white/10 light:border-slate-200">
+              <div className="flex flex-col gap-y-1">
+                <h3 className="text-sm font-semibold text-white light:text-slate-900">
+                  {t(
+                    "scheduledJobs.systemJobs.workspaceRetention.title",
+                    "Auto-delete Old Workspaces"
+                  )}
+                </h3>
+                <p className="text-xs text-zinc-400 light:text-slate-600 mb-4">
+                  {t(
+                    "scheduledJobs.systemJobs.workspaceRetention.description",
+                    "Automatically delete workspaces that have been inactive for a certain period of time. This job runs daily."
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-x-4">
+                <select
+                  value={workspaceRetentionDays}
+                  onChange={(e) =>
+                    handleUpdateWorkspaceRetention(Number(e.target.value))
+                  }
+                  disabled={savingWorkspaceSettings}
+                  className="border-none bg-theme-settings-input-bg text-white placeholder:text-theme-settings-input-placeholder text-sm rounded-lg focus:outline-primary-button active:outline-primary-button outline-none block w-fit py-2 px-4 cursor-pointer"
+                >
+                  <option value={1}>
+                    {t("scheduledJobs.systemJobs.retention.oneDay", "1 Day")}
+                  </option>
+                  <option value={7}>
+                    {t("scheduledJobs.systemJobs.retention.oneWeek", "1 Week")}
+                  </option>
+                  <option value={30}>
+                    {t(
+                      "scheduledJobs.systemJobs.retention.oneMonth",
+                      "1 Month"
+                    )}
+                  </option>
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between px-4 pb-[18px] text-xs font-semibold uppercase tracking-[1.4px] text-zinc-400 light:text-slate-600">
         <span className="w-[150px]">{t("scheduledJobs.table.name")}</span>
         <span className="w-[180px]">{t("scheduledJobs.table.schedule")}</span>

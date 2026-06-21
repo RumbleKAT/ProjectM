@@ -19,6 +19,7 @@ export default function OllamaEmbeddingOptions({ settings }) {
   } = useProviderEndpointAutoDiscovery({
     provider: "ollama",
     initialBasePath: settings?.EmbeddingBasePath,
+    initialAuthToken: settings?.OllamaLLMAuthToken,
     ENDPOINTS: OLLAMA_COMMON_URLS,
   });
 
@@ -119,7 +120,7 @@ export default function OllamaEmbeddingOptions({ settings }) {
               name="EmbeddingBasePath"
               className="border-none bg-theme-settings-input-bg text-white placeholder:text-theme-settings-input-placeholder text-sm rounded-lg focus:outline-primary-button active:outline-primary-button outline-none block w-full p-2.5"
               placeholder="http://127.0.0.1:11434"
-              value={basePathValue.value}
+              value={basePathValue.value || ""}
               required={true}
               autoComplete="off"
               spellCheck={false}
@@ -174,8 +175,7 @@ export default function OllamaEmbeddingOptions({ settings }) {
               name="OllamaLLMAuthToken"
               className="border-none bg-theme-settings-input-bg text-white placeholder:text-theme-settings-input-placeholder text-sm rounded-lg focus:outline-primary-button active:outline-primary-button outline-none block w-full p-2.5"
               placeholder="Enter your Auth Token"
-              defaultValue={settings?.OllamaLLMAuthToken ? "*".repeat(20) : ""}
-              value={authTokenValue.value}
+              value={authTokenValue.value || ""}
               onChange={authToken.onChange}
               onBlur={authToken.onBlur}
               required={false}

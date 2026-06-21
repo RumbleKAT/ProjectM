@@ -12,8 +12,10 @@ export default function SystemJobsPanel() {
   const [jobs, setJobs] = useState([]);
   const [retentionDays, setRetentionDays] = useState(30);
   const [workspaceRetentionDays, setWorkspaceRetentionDays] = useState(30);
+  const [tempCleanupEnabled, setTempCleanupEnabled] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingWorkspaceSettings, setSavingWorkspaceSettings] = useState(false);
+  const [savingTempCleanup, setSavingTempCleanup] = useState(false);
 
   const fetchJobs = async () => {
     const { jobs: foundJobs } = await SystemJobs.list();
@@ -26,6 +28,7 @@ export default function SystemJobsPanel() {
       const { settings } = await Admin.systemPreferencesByFields([
         "inactive_chat_retention_days",
         "inactive_workspace_retention_days",
+        "temp_workspace_cleanup_enabled",
       ]);
       if (settings?.inactive_chat_retention_days !== undefined) {
         setRetentionDays(Number(settings.inactive_chat_retention_days));
@@ -33,6 +36,11 @@ export default function SystemJobsPanel() {
       if (settings?.inactive_workspace_retention_days !== undefined) {
         setWorkspaceRetentionDays(
           Number(settings.inactive_workspace_retention_days)
+        );
+      }
+      if (settings?.temp_workspace_cleanup_enabled !== undefined) {
+        setTempCleanupEnabled(
+          settings.temp_workspace_cleanup_enabled === "true"
         );
       }
     } catch (e) {
@@ -125,6 +133,33 @@ export default function SystemJobsPanel() {
     } else {
       showToast(
         result?.error || "Failed to update workspace retention period.",
+        "error",
+        { clear: true }
+      );
+    }
+  };
+
+  const handleUpdateTempCleanup = async (enabled) => {
+    setSavingTempCleanup(true);
+    const result = await Admin.updateSystemPreferences({
+      temp_workspace_cleanup_enabled: enabled ? "true" : "false",
+    });
+    setSavingTempCleanup(false);
+    if (result?.success) {
+      setTempCleanupEnabled(enabled);
+      showToast(
+        t(
+          "scheduledJobs.systemJobs.toast.tempCleanupSaved",
+          "Temporary workspace cleanup setting updated successfully."
+        ),
+        "success",
+        { clear: true }
+      );
+      fetchJobs();
+    } else {
+      showToast(
+        result?.error ||
+          "Failed to update temporary workspace cleanup setting.",
         "error",
         { clear: true }
       );
@@ -233,6 +268,43 @@ export default function SystemJobsPanel() {
               </div>
             </div>
           )}
+
+          <div className="flex-1 p-6 rounded-xl bg-white/5 light:bg-slate-50 border border-white/10 light:border-slate-200">
+            <div className="flex flex-col gap-y-1">
+              <h3 className="text-sm font-semibold text-white light:text-slate-900">
+                {t(
+                  "scheduledJobs.systemJobs.tempCleanup.title",
+                  "Auto-delete Temp Workspaces"
+                )}
+              </h3>
+              <p className="text-xs text-zinc-400 light:text-slate-600 mb-4">
+                {t(
+                  "scheduledJobs.systemJobs.tempCleanup.description",
+                  "Automatically delete temporary workspaces created via the developer API after 24 hours."
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-x-4">
+              <select
+                value={tempCleanupEnabled ? "true" : "false"}
+                onChange={(e) =>
+                  handleUpdateTempCleanup(e.target.value === "true")
+                }
+                disabled={savingTempCleanup}
+                className="border-none bg-theme-settings-input-bg text-white placeholder:text-theme-settings-input-placeholder text-sm rounded-lg focus:outline-primary-button active:outline-primary-button outline-none block w-fit py-2 px-4 cursor-pointer"
+              >
+                <option value="true">
+                  {t("scheduledJobs.systemJobs.tempCleanup.enabled", "Enabled")}
+                </option>
+                <option value="false">
+                  {t(
+                    "scheduledJobs.systemJobs.tempCleanup.disabled",
+                    "Disabled"
+                  )}
+                </option>
+              </select>
+            </div>
+          </div>
         </div>
       )}
 

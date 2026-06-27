@@ -1,4 +1,11 @@
-import { useState, useEffect, useContext, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useContext,
+  useRef,
+  useCallback,
+  useReducer,
+} from "react";
 import ChatHistory from "./ChatHistory";
 import { CLEAR_ATTACHMENTS_EVENT, DndUploaderContext } from "./DnDWrapper";
 import PromptInput, {
@@ -7,6 +14,7 @@ import PromptInput, {
 } from "./PromptInput";
 import Workspace from "@/models/workspace";
 import handleChat, { ABORT_STREAM_EVENT } from "@/utils/chat";
+import { agentReplyReducer } from "@/utils/chat/agentReplyState";
 import { isMobile } from "react-device-detect";
 import { SidebarMobileHeader } from "../../Sidebar";
 import { useNavigate } from "react-router-dom";
@@ -48,6 +56,10 @@ export default function ChatContainer({
   const [chatHistory, setChatHistory] = useState(knownHistory);
   const [socketId, setSocketId] = useState(null);
   const [websocket, setWebsocket] = useState(null);
+  const [agentReplyPending, dispatchAgentReply] = useReducer(
+    agentReplyReducer,
+    false
+  );
   const { files, parseAttachments } = useContext(DndUploaderContext);
   const { chatHistoryRef } = useChatContainerQuickScroll();
   const pendingMessageChecked = useRef(false);
@@ -97,6 +109,7 @@ export default function ChatContainer({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (agentReplyPending) return false;
     const currentMessage =
       document.getElementById(PROMPT_INPUT_ID)?.value || "";
     if (!currentMessage) return false;
@@ -144,6 +157,9 @@ export default function ChatContainer({
     setChatHistory(prevChatHistory);
     setMessageEmit("");
     setLoadingResponse(true);
+    if (websocket) {
+      dispatchAgentReply({ type: "SUBMIT_FOLLOW_UP" });
+    }
   };
 
   function endSTTSession() {
@@ -175,6 +191,8 @@ export default function ChatContainer({
       setMessageEmit(text, writeMode);
       return;
     }
+
+    if (agentReplyPending) return false;
 
     if (writeMode === "prepend") {
       const currentText = document.getElementById(PROMPT_INPUT_ID)?.value ?? "";
@@ -249,6 +267,9 @@ export default function ChatContainer({
     setChatHistory(prevChatHistory);
     setMessageEmit("");
     setLoadingResponse(true);
+    if (websocket) {
+      dispatchAgentReply({ type: "SUBMIT_FOLLOW_UP" });
+    }
   };
 
   sendCommandRef.current = sendCommand;
@@ -356,12 +377,14 @@ export default function ChatContainer({
     function handleWSS() {
       try {
         if (!socketId || !!websocket) return;
+        dispatchAgentReply({ type: "INVOCATION_ESTABLISHED" });
         socket = new WebSocket(
           `${websocketURI()}/api/agent-invocation/${socketId}`
         );
         socket.supportsAgentStreaming = false;
 
         window.addEventListener(ABORT_STREAM_EVENT, () => {
+          dispatchAgentReply({ type: "ABORT" });
           setAgentSessionActive(false);
           window.dispatchEvent(new CustomEvent(AGENT_SESSION_END));
           socket?.close();
@@ -370,9 +393,17 @@ export default function ChatContainer({
         socket.addEventListener("message", (event) => {
           setLoadingResponse(true);
           try {
+            const data = safeJsonParse(event.data, null);
+            if (data) {
+              dispatchAgentReply({
+                type: "WEBSOCKET_MESSAGE",
+                payload: data,
+              });
+            }
             handleSocketResponse(socket, event, setChatHistory);
-          } catch {
-            console.error("Failed to parse data");
+          } catch (err) {
+            console.error("Failed to parse data", err);
+            dispatchAgentReply({ type: "WEBSOCKET_ERROR" });
             setAgentSessionActive(false);
             window.dispatchEvent(new CustomEvent(AGENT_SESSION_END));
             socket.close();
@@ -388,6 +419,7 @@ export default function ChatContainer({
           }
         });
         socket.addEventListener("close", (_event) => {
+          dispatchAgentReply({ type: "WEBSOCKET_CLOSE" });
           setAgentSessionActive(false);
           window.dispatchEvent(new CustomEvent(AGENT_SESSION_END));
           // When the close was triggered by /reset, skip the "Agent session
@@ -419,6 +451,7 @@ export default function ChatContainer({
         window.dispatchEvent(new CustomEvent(AGENT_SESSION_START));
         window.dispatchEvent(new CustomEvent(CLEAR_ATTACHMENTS_EVENT));
       } catch (e) {
+        dispatchAgentReply({ type: "WEBSOCKET_ERROR" });
         setChatHistory((prev) => [
           ...prev.filter((msg) => !!msg.content),
           {
@@ -442,6 +475,7 @@ export default function ChatContainer({
 
     return () => {
       if (socket) {
+        dispatchAgentReply({ type: "WEBSOCKET_CLOSE" });
         setAgentSessionActive(false);
         window.dispatchEvent(new CustomEvent(AGENT_SESSION_END));
         socket.close();
@@ -477,6 +511,7 @@ export default function ChatContainer({
                     sendCommand={sendCommand}
                     attachments={files}
                     centered={true}
+                    agentReplyPending={agentReplyPending}
                   />
                   <QuickActions
                     hasAvailableWorkspace={!!workspace}
@@ -542,6 +577,7 @@ export default function ChatContainer({
                   sendCommand={sendCommand}
                   attachments={files}
                   centered={false}
+                  agentReplyPending={agentReplyPending}
                 />
               </div>
             </div>

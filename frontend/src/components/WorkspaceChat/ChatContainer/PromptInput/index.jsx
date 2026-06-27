@@ -42,10 +42,12 @@ export default function PromptInput({
   centered = false,
   workspaceSlug = null,
   threadSlug = null,
+  agentReplyPending = false,
 }) {
   const { t } = useTranslation();
   const { showAgentCommand = true } = workspace ?? {};
   const { isDisabled } = useIsDisabled();
+  const isSendLocked = isDisabled || agentReplyPending;
   const agentSessionActive = useIsAgentSessionActive();
   const [promptInput, setPromptInput] = useState("");
   const [showTools, setShowTools] = useState(false);
@@ -187,7 +189,7 @@ export default function PromptInput({
     // Is simple enter key press w/o shift key
     if (event.keyCode === 13 && !event.shiftKey) {
       event.preventDefault();
-      if (isStreaming || isDisabled) return; // Prevent submission if streaming or disabled
+      if (isStreaming || isSendLocked) return; // Prevent submission if streaming or send locked
       setShowTools(false);
       return submit(event);
     }
@@ -396,6 +398,7 @@ export default function PromptInput({
                       formRef={formRef}
                       promptInput={promptInput}
                       isDisabled={isDisabled}
+                      agentReplyPending={agentReplyPending}
                     />
                   )}
                 </div>
@@ -487,17 +490,23 @@ function ToolsButton({
   );
 }
 
-function SendPromptButton({ formRef, promptInput, isDisabled }) {
+function SendPromptButton({
+  formRef,
+  promptInput,
+  isDisabled,
+  agentReplyPending,
+}) {
   const { t } = useTranslation();
+  const isSendLocked = isDisabled || agentReplyPending;
 
   return (
     <>
       <button
         ref={formRef}
         type="submit"
-        disabled={isDisabled || !promptInput.trim().length}
+        disabled={isSendLocked || !promptInput.trim().length}
         className={`border-none flex justify-center items-center rounded-full w-8 h-8 transition-all ${
-          promptInput.trim().length && !isDisabled
+          promptInput.trim().length && !isSendLocked
             ? "cursor-pointer bg-white hover:bg-zinc-200 light:bg-slate-800 light:hover:bg-slate-600"
             : "cursor-not-allowed bg-zinc-600 light:bg-slate-400"
         }`}

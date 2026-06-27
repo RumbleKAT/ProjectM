@@ -45,7 +45,7 @@ describe("WORKSPACE_AGENT.getDefinition", () => {
       workspace,
       user
     );
-    expect(definition.role).toBe(expectedPrompt);
+    expect(definition.role.startsWith(expectedPrompt)).toBe(true);
     expect(SystemPromptVariables.expandSystemPromptVariables).not.toHaveBeenCalled();
   });
 
@@ -72,7 +72,7 @@ describe("WORKSPACE_AGENT.getDefinition", () => {
       user.id,
       workspace.id
     );
-    expect(definition.role).toBe(expandedPrompt);
+    expect(definition.role.startsWith(expandedPrompt)).toBe(true);
   });
 
   it("should handle workspace system prompt without user context", async () => {
@@ -97,7 +97,7 @@ describe("WORKSPACE_AGENT.getDefinition", () => {
       null,
       workspace.id
     );
-    expect(definition.role).toBe(expandedPrompt);
+    expect(definition.role.startsWith(expandedPrompt)).toBe(true);
   });
 
   it("should return functions array in definition", async () => {
@@ -124,8 +124,27 @@ describe("WORKSPACE_AGENT.getDefinition", () => {
       null
     );
 
-    expect(definition.role).toBe(await Provider.systemPrompt({ provider, workspace, user }));
+    expect(
+      definition.role.startsWith(
+        await Provider.systemPrompt({ provider, workspace, user })
+      )
+    ).toBe(true);
     expect(definition.role).toContain("helpful ai assistant");
   });
-});
 
+  it("enables get-current-datetime and requires it for temporal questions", async () => {
+    const definition = await WORKSPACE_AGENT.getDefinition(
+      "openai",
+      { id: 1, openAiPrompt: null },
+      null
+    );
+
+    expect(definition.functions).toContain("get-current-datetime");
+    expect(definition.role).toContain(
+      "MUST call get-current-datetime before answering"
+    );
+    expect(definition.role).toContain(
+      "Never infer the current date, time, or weekday"
+    );
+  });
+});

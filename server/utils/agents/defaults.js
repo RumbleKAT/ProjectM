@@ -8,6 +8,7 @@ const MCPCompatibilityLayer = require("../MCP");
 
 // This is a list of skills that are built-in and default enabled.
 const DEFAULT_SKILLS = [
+  AgentPlugins.currentDateTime.name,
   AgentPlugins.memory.name,
   AgentPlugins.docSummarizer.name,
   AgentPlugins.webScraping.name,
@@ -81,16 +82,20 @@ const WORKSPACE_AGENT = {
       role +=
         "\n\nWhen you need information from the user (URLs, file paths, preferences, choices, etc.), you MUST use the request-user-input tool. Do not ask questions in your text response - the user cannot reply to text. Only the tool can collect user input.";
 
-    return {
-      role,
-      functions: [
-        ...(await agentSkillsFromSystemSettings()),
-        ...clarifyingQuestionsSkills,
-        ...ImportedPlugin.activeImportedPlugins(),
-        ...AgentFlows.activeFlowPlugins(),
-        ...(await new MCPCompatibilityLayer().activeMCPServers()),
-      ],
-    };
+    const functions = [
+      ...(await agentSkillsFromSystemSettings()),
+      ...clarifyingQuestionsSkills,
+      ...ImportedPlugin.activeImportedPlugins(),
+      ...AgentFlows.activeFlowPlugins(),
+      ...(await new MCPCompatibilityLayer().activeMCPServers()),
+    ];
+
+    if (functions.includes(AgentPlugins.currentDateTime.name)) {
+      role +=
+        "\n\nFor any question asking for today's date, the current date, today's weekday, the current time, or what time it is, you MUST call get-current-datetime before answering. Never infer the current date, time, or weekday from model knowledge or previous messages. Preserve the date, time, and weekday returned by the tool.";
+    }
+
+    return { role, functions };
   },
 };
 

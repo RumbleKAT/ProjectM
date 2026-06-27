@@ -12,6 +12,7 @@ const { gmailAgent } = require("./gmail/index.js");
 const { outlookAgent } = require("./outlook/index.js");
 const { googleCalendarAgent } = require("./google-calendar/index.js");
 const { requestUserInput } = require("./request-user-input.js");
+const { currentDateTime } = require("./current-datetime.js");
 
 module.exports = {
   webScraping,
@@ -28,6 +29,7 @@ module.exports = {
   outlookAgent,
   googleCalendarAgent,
   requestUserInput,
+  currentDateTime,
 
   // Plugin name aliases so they can be pulled by slug as well.
   [webScraping.name]: webScraping,
@@ -44,4 +46,5 @@ module.exports = {
   [outlookAgent.name]: outlookAgent,
   [googleCalendarAgent.name]: googleCalendarAgent,
   [requestUserInput.name]: requestUserInput,
+  [currentDateTime.name]: currentDateTime,
 };

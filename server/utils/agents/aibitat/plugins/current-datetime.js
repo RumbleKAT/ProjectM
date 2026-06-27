@@ -17,7 +17,9 @@ function serverTimeZone() {
     runtimeTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   } catch {}
 
-  return [process.env.TZ, runtimeTimeZone, "UTC"].find(isValidTimeZone) || "UTC";
+  return (
+    [process.env.TZ, runtimeTimeZone, "UTC"].find(isValidTimeZone) || "UTC"
+  );
 }
 
 function resolveTimeZone(candidate, fallback = serverTimeZone()) {

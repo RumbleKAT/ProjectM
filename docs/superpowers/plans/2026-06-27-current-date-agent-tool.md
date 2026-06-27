@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a default `get-current-date` agent tool that returns the actual date and weekday using the browser time zone, with server-time-zone fallback.
+**Goal:** Add a default `get-current-datetime` agent tool that returns the actual date, time, and weekday using the browser time zone, with server-time-zone fallback.
 
-**Architecture:** A pure helper validates IANA time zones and formats a fresh `Date` for each tool call. Web chat requests carry the browser time zone into the durable agent invocation used by the later WebSocket connection. The tool is enabled by default, and the agent role explicitly requires it for current-date questions.
+**Architecture:** A pure helper validates IANA time zones and formats a fresh `Date` for each tool call. Web chat requests carry the browser time zone into the durable agent invocation used by the later WebSocket connection. The tool is enabled by default, and the agent role explicitly requires it for current-date, weekday, and current-time questions.
 
 **Tech Stack:** Node.js CommonJS, AIbitat plugins, Prisma/SQLite, React, Jest 29, ESLint
 
@@ -12,8 +12,8 @@
 
 ## File Map
 
-- Create `server/utils/agents/aibitat/plugins/current-date.js` for time-zone resolution, date formatting, and tool registration.
-- Create `server/__tests__/utils/agents/aibitat/plugins/current-date.test.js` for boundary and tool-contract tests.
+- Create `server/utils/agents/aibitat/plugins/current-datetime.js` for time-zone resolution, date formatting, and tool registration.
+- Create `server/__tests__/utils/agents/aibitat/plugins/current-datetime.test.js` for boundary and tool-contract tests.
 - Modify `server/utils/agents/aibitat/plugins/index.js` and `server/utils/agents/defaults.js` for registration and role guidance.
 - Modify `server/__tests__/utils/agents/defaults.test.js` for default availability and mandatory-use coverage.
 - Create `server/__tests__/models/workspaceAgentInvocation.test.js` for durable time-zone persistence.
@@ -25,38 +25,40 @@
 ### Task 1: Deterministic date tool
 
 **Files:**
-- Create: `server/__tests__/utils/agents/aibitat/plugins/current-date.test.js`
-- Create: `server/utils/agents/aibitat/plugins/current-date.js`
+- Create: `server/__tests__/utils/agents/aibitat/plugins/current-datetime.test.js`
+- Create: `server/utils/agents/aibitat/plugins/current-datetime.js`
 
 - [ ] **Step 1: Write the failing tests**
 
 ```js
 const {
-  currentDate,
-  currentDateParts,
+  currentDateTime,
+  currentDateTimeParts,
   resolveTimeZone,
-} = require("../../../../../utils/agents/aibitat/plugins/current-date");
+} = require("../../../../../utils/agents/aibitat/plugins/current-datetime");
 
-describe("get-current-date", () => {
+describe("get-current-datetime", () => {
   afterEach(() => jest.useRealTimers());
 
   test("uses the next local day in Asia/Seoul", () => {
-    expect(currentDateParts({
+    expect(currentDateTimeParts({
       now: new Date("2026-06-26T15:30:00.000Z"),
       timeZone: "Asia/Seoul",
     })).toEqual({
       date: "2026-06-27",
+      time: "00:30:00",
       weekday: "Saturday",
       timeZone: "Asia/Seoul",
     });
   });
 
   test("uses the previous local day in America/Los_Angeles", () => {
-    expect(currentDateParts({
+    expect(currentDateTimeParts({
       now: new Date("2026-06-27T02:00:00.000Z"),
       timeZone: "America/Los_Angeles",
     })).toEqual({
       date: "2026-06-26",
+      time: "19:00:00",
       weekday: "Friday",
       timeZone: "America/Los_Angeles",
     });
@@ -82,10 +84,10 @@ describe("get-current-date", () => {
       introspect: jest.fn(),
       function: (config) => { tool = config; },
     };
-    currentDate.plugin().setup(aibitat);
+    currentDateTime.plugin().setup(aibitat);
     expect(tool.parameters.properties).toEqual({});
     await expect(tool.handler.call(tool, {})).resolves.toBe(
-      "Current date: 2026-06-27\nWeekday: Saturday\nTime zone: Asia/Seoul"
+      "Current date: 2026-06-27\nCurrent time: 00:30:00\nWeekday: Saturday\nTime zone: Asia/Seoul"
     );
   });
 });
@@ -94,10 +96,10 @@ describe("get-current-date", () => {
 - [ ] **Step 2: Verify RED**
 
 ```bash
-PATH=/Users/songmyeongjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH ./node_modules/.bin/jest server/__tests__/utils/agents/aibitat/plugins/current-date.test.js --runInBand
+PATH=/Users/songmyeongjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH ./node_modules/.bin/jest server/__tests__/utils/agents/aibitat/plugins/current-datetime.test.js --runInBand
 ```
 
-Expected: FAIL because `plugins/current-date.js` does not exist.
+Expected: FAIL because `plugins/current-datetime.js` does not exist.
 
 - [ ] **Step 3: Implement the helper and plugin**
 
@@ -126,25 +128,30 @@ function resolveTimeZone(candidate, fallback = serverTimeZone()) {
   return "UTC";
 }
 
-function currentDateParts({ now = new Date(), timeZone = null } = {}) {
+function currentDateTimeParts({ now = new Date(), timeZone = null } = {}) {
   const resolvedTimeZone = resolveTimeZone(timeZone);
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: resolvedTimeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
     weekday: "long",
   }).formatToParts(now);
   const value = (type) => parts.find((part) => part.type === type)?.value;
   return {
     date: `${value("year")}-${value("month")}-${value("day")}`,
+    time: `${value("hour")}:${value("minute")}:${value("second")}`,
     weekday: value("weekday"),
     timeZone: resolvedTimeZone,
   };
 }
 
-const currentDate = {
-  name: "get-current-date",
+const currentDateTime = {
+  name: "get-current-datetime",
   startupConfig: { params: {} },
   plugin: function () {
     return {
@@ -153,10 +160,11 @@ const currentDate = {
         aibitat.function({
           super: aibitat,
           name: this.name,
-          description: "Get the actual current date and weekday. You MUST use this before answering questions about today's date, the current date, or today's weekday. Never guess.",
+          description: "Get the actual current date, time, and weekday. You MUST use this before answering questions about today's date, the current date, today's weekday, the current time, or what time it is. Never guess.",
           examples: [
             { prompt: "What is today's date?", call: JSON.stringify({}) },
             { prompt: "오늘 날짜와 요일이 뭐야?", call: JSON.stringify({}) },
+            { prompt: "지금 몇 시야?", call: JSON.stringify({}) },
           ],
           parameters: {
             $schema: "http://json-schema.org/draft-07/schema#",
@@ -166,18 +174,18 @@ const currentDate = {
           },
           handler: async function () {
             try {
-              const result = currentDateParts({
+              const result = currentDateTimeParts({
                 timeZone: this.super.handlerProps.invocation?.timezone,
               });
               this.super.introspect(
-                `${this.caller}: Checking the current date in ${result.timeZone}.`
+                `${this.caller}: Checking the current date and time in ${result.timeZone}.`
               );
-              return `Current date: ${result.date}\nWeekday: ${result.weekday}\nTime zone: ${result.timeZone}`;
+              return `Current date: ${result.date}\nCurrent time: ${result.time}\nWeekday: ${result.weekday}\nTime zone: ${result.timeZone}`;
             } catch (error) {
               this.super.handlerProps.log(
-                `get-current-date raised an error. ${error.message}`
+                `get-current-datetime raised an error. ${error.message}`
               );
-              return "The current date could not be determined. Do not guess it; tell the user the lookup failed.";
+              return "The current date and time could not be determined. Do not guess them; tell the user the lookup failed.";
             }
           },
         });
@@ -187,8 +195,8 @@ const currentDate = {
 };
 
 module.exports = {
-  currentDate,
-  currentDateParts,
+  currentDateTime,
+  currentDateTimeParts,
   isValidTimeZone,
   resolveTimeZone,
   serverTimeZone,
@@ -200,7 +208,7 @@ module.exports = {
 Run the Step 2 command; expect 5 passing tests. Then:
 
 ```bash
-git add server/utils/agents/aibitat/plugins/current-date.js server/__tests__/utils/agents/aibitat/plugins/current-date.test.js
+git add server/utils/agents/aibitat/plugins/current-datetime.js server/__tests__/utils/agents/aibitat/plugins/current-datetime.test.js
 git commit -m "feat: add deterministic current date agent tool"
 ```
 
@@ -214,15 +222,15 @@ git commit -m "feat: add deterministic current date agent tool"
 - [ ] **Step 1: Add the failing behavior test**
 
 ```js
-it("enables get-current-date and requires it for date questions", async () => {
+it("enables get-current-datetime and requires it for temporal questions", async () => {
   const definition = await WORKSPACE_AGENT.getDefinition(
     "openai",
     { id: 1, openAiPrompt: null },
     null
   );
-  expect(definition.functions).toContain("get-current-date");
-  expect(definition.role).toContain("MUST call get-current-date before answering");
-  expect(definition.role).toContain("Never infer the current date or weekday");
+  expect(definition.functions).toContain("get-current-datetime");
+  expect(definition.role).toContain("MUST call get-current-datetime before answering");
+  expect(definition.role).toContain("Never infer the current date, time, or weekday");
 });
 ```
 
@@ -236,12 +244,12 @@ Expected: FAIL because the tool is absent.
 
 - [ ] **Step 3: Register and guide**
 
-Import and export `currentDate` in the plugin index, including `[currentDate.name]: currentDate`. Add `AgentPlugins.currentDate.name` to `DEFAULT_SKILLS`. Build the function array once in `WORKSPACE_AGENT.getDefinition`, then append:
+Import and export `currentDateTime` in the plugin index, including `[currentDateTime.name]: currentDateTime`. Add `AgentPlugins.currentDateTime.name` to `DEFAULT_SKILLS`. Build the function array once in `WORKSPACE_AGENT.getDefinition`, then append:
 
 ```js
-if (functions.includes(AgentPlugins.currentDate.name)) {
+if (functions.includes(AgentPlugins.currentDateTime.name)) {
   role +=
-    "\n\nFor any question asking for today's date, the current date, or today's weekday, you MUST call get-current-date before answering. Never infer the current date or weekday from model knowledge or previous messages. Preserve the date and weekday returned by the tool.";
+    "\n\nFor any question asking for today's date, the current date, today's weekday, the current time, or what time it is, you MUST call get-current-datetime before answering. Never infer the current date, time, or weekday from model knowledge or previous messages. Preserve the date, time, and weekday returned by the tool.";
 }
 ```
 
@@ -338,7 +346,7 @@ and send `JSON.stringify({ message, attachments, timeZone })`.
 Both chat routes accept `timeZone = null` and pass `{ timeZone }` as a final argument to `streamChatWithWorkspace`. That function accepts `requestContext = {}` and passes `timeZone: requestContext.timeZone` to `grepAgents`. At the agent trust boundary, persist:
 
 ```js
-const { resolveTimeZone } = require("../agents/aibitat/plugins/current-date");
+const { resolveTimeZone } = require("../agents/aibitat/plugins/current-datetime");
 
 timeZone: resolveTimeZone(timeZone),
 ```
@@ -347,7 +355,7 @@ timeZone: resolveTimeZone(timeZone),
 
 ```bash
 PATH=/Users/songmyeongjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH ./server/node_modules/.bin/prisma generate --schema server/prisma/schema.prisma
-PATH=/Users/songmyeongjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH ./node_modules/.bin/jest server/__tests__/models/workspaceAgentInvocation.test.js server/__tests__/frontend/currentDateTimeZoneWiring.test.js server/__tests__/utils/agents/aibitat/plugins/current-date.test.js --runInBand
+PATH=/Users/songmyeongjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH ./node_modules/.bin/jest server/__tests__/models/workspaceAgentInvocation.test.js server/__tests__/frontend/currentDateTimeZoneWiring.test.js server/__tests__/utils/agents/aibitat/plugins/current-datetime.test.js --runInBand
 git add frontend/src/models/workspace.js frontend/src/models/workspaceThread.js server/endpoints/chat.js server/utils/chats/stream.js server/utils/chats/agents.js server/models/workspaceAgentInvocation.js server/prisma/schema.prisma server/prisma/migrations/20260627120000_add_agent_invocation_timezone/migration.sql server/__tests__/models/workspaceAgentInvocation.test.js server/__tests__/frontend/currentDateTimeZoneWiring.test.js
 git commit -m "feat: pass browser timezone to date tool"
 ```
@@ -362,7 +370,7 @@ Expected: Prisma generation succeeds and all focused tests pass.
 - [ ] **Step 1: Run all focused Jest suites**
 
 ```bash
-PATH=/Users/songmyeongjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH ./node_modules/.bin/jest server/__tests__/utils/agents/defaults.test.js server/__tests__/utils/agents/aibitat/plugins/current-date.test.js server/__tests__/models/workspaceAgentInvocation.test.js server/__tests__/frontend/currentDateTimeZoneWiring.test.js --runInBand
+PATH=/Users/songmyeongjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH ./node_modules/.bin/jest server/__tests__/utils/agents/defaults.test.js server/__tests__/utils/agents/aibitat/plugins/current-datetime.test.js server/__tests__/models/workspaceAgentInvocation.test.js server/__tests__/frontend/currentDateTimeZoneWiring.test.js --runInBand
 ```
 
 Expected: all suites pass without warnings.
@@ -370,7 +378,7 @@ Expected: all suites pass without warnings.
 - [ ] **Step 2: Run focused lint checks**
 
 ```bash
-PATH=/Users/songmyeongjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH ./server/node_modules/.bin/eslint server/utils/agents/aibitat/plugins/current-date.js server/utils/agents/aibitat/plugins/index.js server/utils/agents/defaults.js server/models/workspaceAgentInvocation.js server/endpoints/chat.js server/utils/chats/stream.js server/utils/chats/agents.js server/__tests__/utils/agents/aibitat/plugins/current-date.test.js server/__tests__/utils/agents/defaults.test.js server/__tests__/models/workspaceAgentInvocation.test.js server/__tests__/frontend/currentDateTimeZoneWiring.test.js
+PATH=/Users/songmyeongjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH ./server/node_modules/.bin/eslint server/utils/agents/aibitat/plugins/current-datetime.js server/utils/agents/aibitat/plugins/index.js server/utils/agents/defaults.js server/models/workspaceAgentInvocation.js server/endpoints/chat.js server/utils/chats/stream.js server/utils/chats/agents.js server/__tests__/utils/agents/aibitat/plugins/current-datetime.test.js server/__tests__/utils/agents/defaults.test.js server/__tests__/models/workspaceAgentInvocation.test.js server/__tests__/frontend/currentDateTimeZoneWiring.test.js
 PATH=/Users/songmyeongjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH ./frontend/node_modules/.bin/eslint frontend/src/models/workspace.js frontend/src/models/workspaceThread.js
 ```
 

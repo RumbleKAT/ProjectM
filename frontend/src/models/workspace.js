@@ -160,6 +160,7 @@ const Workspace = {
   },
   streamChat: async function ({ slug }, message, handleChat, attachments = []) {
     const ctrl = new AbortController();
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     // Listen for the ABORT_STREAM_EVENT key to be emitted by the client
     // to early abort the streaming response. On abort we send a special `stopGeneration`
@@ -172,7 +173,7 @@ const Workspace = {
 
     await fetchEventSource(`${API_BASE}/workspace/${slug}/stream-chat`, {
       method: "POST",
-      body: JSON.stringify({ message, attachments }),
+      body: JSON.stringify({ message, attachments, timeZone }),
       headers: baseHeaders(),
       signal: ctrl.signal,
       openWhenHidden: true,

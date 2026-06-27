@@ -4,6 +4,9 @@ const {
 } = require("../../models/workspaceAgentInvocation");
 const { writeResponseChunk } = require("../helpers/chat/responses");
 const { Workspace } = require("../../models/workspace");
+const {
+  resolveTimeZone,
+} = require("../agents/aibitat/plugins/current-datetime");
 
 /**
  * In-memory cache for attachments associated with agent invocations.
@@ -43,6 +46,7 @@ async function grepAgents({
   user = null,
   thread = null,
   attachments = [],
+  timeZone = null,
 }) {
   let nativeToolingEnabled = false;
 
@@ -58,6 +62,7 @@ async function grepAgents({
       workspace: workspace,
       user: user,
       thread: thread,
+      timeZone: resolveTimeZone(timeZone),
     });
 
     if (!newInvocation) {

@@ -94,6 +94,7 @@ const WorkspaceThread = {
     attachments = []
   ) {
     const ctrl = new AbortController();
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     // Listen for the ABORT_STREAM_EVENT key to be emitted by the client
     // to early abort the streaming response. On abort we send a special `stopGeneration`
@@ -108,7 +109,7 @@ const WorkspaceThread = {
       `${API_BASE}/workspace/${workspaceSlug}/thread/${threadSlug}/stream-chat`,
       {
         method: "POST",
-        body: JSON.stringify({ message, attachments }),
+        body: JSON.stringify({ message, attachments, timeZone }),
         headers: baseHeaders(),
         signal: ctrl.signal,
         openWhenHidden: true,

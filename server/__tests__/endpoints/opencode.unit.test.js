@@ -7,6 +7,15 @@ jest.mock("../../utils/opencodeSdkLoader", () => ({
   loadOpencodeSdk: jest.fn().mockResolvedValue(mockOpencodeSdk),
 }));
 
+jest.mock("../../utils/opencodeServerManager", () => {
+  const original = jest.requireActual("../../utils/opencodeServerManager");
+  return {
+    ...original,
+    start: jest.fn().mockResolvedValue({ url: "http://localhost:4096" }),
+    stop: jest.fn().mockResolvedValue(true),
+  };
+});
+
 jest.mock("../../utils/http", () => ({
   reqBody: jest.fn(),
 }));
@@ -20,9 +29,13 @@ jest.mock("../../utils/middleware/multiUserProtected", () => ({
   ROLES: { all: "*" },
 }));
 
-jest.mock("../../utils/helpers", () => ({
-  getLLMProvider: jest.fn(),
-}));
+jest.mock("../../utils/helpers", () => {
+  const originalModule = jest.requireActual("../../utils/helpers");
+  return {
+    ...originalModule,
+    getLLMProvider: jest.fn(),
+  };
+});
 
 jest.mock("../../utils/helpers/chat/responses", () => ({
   writeResponseChunk: jest.fn(),
@@ -315,6 +328,8 @@ describe("GET /opencode/config handler", () => {
       baseUrl: "",
       serverUrl: "http://localhost:4096",
       sdkLoaded: true,
+      selectedModel: "system-llm",
+      customModel: "",
     });
   });
 
@@ -339,6 +354,8 @@ describe("GET /opencode/config handler", () => {
       baseUrl: "",
       serverUrl: "http://localhost:4096",
       sdkLoaded: true,
+      selectedModel: "system-llm",
+      customModel: "",
     });
   });
 
@@ -358,6 +375,32 @@ describe("GET /opencode/config handler", () => {
       success: false,
       error: "write error",
     });
+  });
+
+  test("should write config successfully on POST /opencode/config", async () => {
+    const app = createMockExpressApp();
+    opencodeEndpoints(app);
+    const handler = getHandler(app.routes, "post", "/opencode/config");
+    const res = createMockResponse();
+    reqBody.mockReturnValue({
+      selectedModel: "custom",
+      customModel: "lmstudio/gemma",
+    });
+
+    const fs = require("fs");
+    jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    jest.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify({}));
+    const writeSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+
+    await handler({}, res);
+
+    expect(writeSpy).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+
+    writeSpy.mockRestore();
+    fs.existsSync.mockRestore();
+    fs.readFileSync.mockRestore();
   });
 });
 
@@ -561,6 +604,100 @@ describe("POST /opencode/chat handler", () => {
     expect(process.env.OPENAI_API_KEY).toBe("sk-existing");
   });
 
+  test("should resolve system-llm to system provider and model", async () => {
+    process.env.LLM_PROVIDER = "openai";
+    process.env.OPEN_AI_KEY = "sk-from-llm-config";
+    process.env.OPEN_MODEL_PREF = "gpt-4o-system";
+
+    const mockClient = {
+      session: {
+        create: jest.fn().mockResolvedValue({ data: { id: "session-123" } }),
+        prompt: jest.fn().mockResolvedValue(mockPromptResult([])),
+      },
+    };
+    mockOpencodeSdk.createOpencodeClient.mockReturnValue(mockClient);
+    reqBody.mockReturnValue({ prompt: "Hello", model: "system-llm" });
+
+    const app = createMockExpressApp();
+    opencodeEndpoints(app);
+    const handler = getHandler(app.routes, "post", "/opencode/chat");
+    const res = createMockResponse();
+
+    await handler({}, res);
+
+    expect(mockClient.session.prompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          model: { providerID: "openai", modelID: "gpt-4o-system" },
+        }),
+      })
+    );
+  });
+
+  test("should resolve system-llm to lmstudio provider and model", async () => {
+    process.env.LLM_PROVIDER = "lmstudio";
+    process.env.LMSTUDIO_AUTH_TOKEN = "lmstudio-token";
+    process.env.LMSTUDIO_BASE_PATH = "http://localhost:1234/v1";
+    process.env.LMSTUDIO_MODEL_PREF = "gemma";
+
+    const mockClient = {
+      session: {
+        create: jest.fn().mockResolvedValue({ data: { id: "session-123" } }),
+        prompt: jest.fn().mockResolvedValue(mockPromptResult([])),
+      },
+    };
+    mockOpencodeSdk.createOpencodeClient.mockReturnValue(mockClient);
+    reqBody.mockReturnValue({ prompt: "Hello", model: "system-llm" });
+
+    const app = createMockExpressApp();
+    opencodeEndpoints(app);
+    const handler = getHandler(app.routes, "post", "/opencode/chat");
+    const res = createMockResponse();
+
+    await handler({}, res);
+
+    expect(mockClient.session.prompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          model: { providerID: "openai", modelID: "gpt-4o" },
+          baseURL: "http://host.docker.internal:1234/v1",
+          apiKey: "lmstudio-token",
+        }),
+      })
+    );
+  });
+
+  test("should resolve custom model with multiple slashes correctly", async () => {
+    process.env.LMSTUDIO_AUTH_TOKEN = "lmstudio-token";
+    process.env.LMSTUDIO_BASE_PATH = "http://localhost:1234/v1";
+
+    const mockClient = {
+      session: {
+        create: jest.fn().mockResolvedValue({ data: { id: "session-123" } }),
+        prompt: jest.fn().mockResolvedValue(mockPromptResult([])),
+      },
+    };
+    mockOpencodeSdk.createOpencodeClient.mockReturnValue(mockClient);
+    reqBody.mockReturnValue({ prompt: "Hello", model: "lmstudio/google/gemma-4-12b-qat" });
+
+    const app = createMockExpressApp();
+    opencodeEndpoints(app);
+    const handler = getHandler(app.routes, "post", "/opencode/chat");
+    const res = createMockResponse();
+
+    await handler({}, res);
+
+    expect(mockClient.session.prompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          model: { providerID: "openai", modelID: "gpt-4o" },
+          baseURL: "http://host.docker.internal:1234/v1",
+          apiKey: "lmstudio-token",
+        }),
+      })
+    );
+  });
+
   test("should create Opencode client with custom serverUrl", async () => {
     const mockClient = {
       session: {
@@ -632,7 +769,7 @@ describe("POST /opencode/chat handler", () => {
     });
     expect(mockClient.session.prompt).toHaveBeenCalledWith({
       path: { id: "session-abc" },
-      body: { parts: [{ type: "text", text: "Hi there" }], model: { providerID: "anthropic", modelID: "claude-3-opus" } },
+      body: { parts: [{ type: "text", text: "Hi there" }], model: { providerID: "anthropic", modelID: "claude-3-opus" }, apiKey: "dummy" },
       parseAs: "stream",
     });
     expect(writeResponseChunk).toHaveBeenNthCalledWith(1, res, { type: "message", text: "Hello" });
@@ -692,7 +829,7 @@ describe("POST /opencode/chat handler", () => {
 
     expect(mockClient.session.prompt).toHaveBeenCalledWith({
       path: { id: "session-1" },
-      body: { parts: [{ type: "text", text: "Hello" }], model: { providerID: "openai", modelID: "gpt-4o" } },
+      body: { parts: [{ type: "text", text: "Hello" }], model: { providerID: "openai", modelID: "gpt-4o" }, apiKey: "dummy" },
       parseAs: "stream",
     });
   });
@@ -719,7 +856,7 @@ describe("POST /opencode/chat handler", () => {
 
     expect(mockClient.session.prompt).toHaveBeenCalledWith({
       path: { id: "session-1" },
-      body: { parts: [{ type: "text", text: "Hello" }], model: { providerID: "gemini", modelID: "gemini-2.0-flash" } },
+      body: { parts: [{ type: "text", text: "Hello" }], model: { providerID: "gemini", modelID: "gemini-2.0-flash" }, apiKey: "dummy" },
       parseAs: "stream",
     });
   });
@@ -746,7 +883,7 @@ describe("POST /opencode/chat handler", () => {
 
     expect(mockClient.session.prompt).toHaveBeenCalledWith({
       path: { id: "session-1" },
-      body: { parts: [{ type: "text", text: "Hello" }], model: { providerID: "anthropic", modelID: "claude-sonnet-4-20250514" } },
+      body: { parts: [{ type: "text", text: "Hello" }], model: { providerID: "anthropic", modelID: "claude-sonnet-4-20250514" }, apiKey: "dummy" },
       parseAs: "stream",
     });
   });
@@ -773,7 +910,7 @@ describe("POST /opencode/chat handler", () => {
 
     expect(mockClient.session.prompt).toHaveBeenCalledWith({
       path: { id: "session-1" },
-      body: { parts: [{ type: "text", text: "Hello" }], model: { providerID: "ollama", modelID: "llama3" } },
+      body: { parts: [{ type: "text", text: "Hello" }], model: { providerID: "ollama", modelID: "llama3" }, apiKey: "dummy" },
       parseAs: "stream",
     });
   });
@@ -800,7 +937,7 @@ describe("POST /opencode/chat handler", () => {
 
     expect(mockClient.session.prompt).toHaveBeenCalledWith({
       path: { id: "session-1" },
-      body: { parts: [{ type: "text", text: "Hello" }], model: { providerID: "openai", modelID: "gpt-4o" } },
+      body: { parts: [{ type: "text", text: "Hello" }], model: { providerID: "openai", modelID: "gpt-4o" }, apiKey: "dummy" },
       parseAs: "stream",
     });
   });

@@ -20,8 +20,9 @@ export default function GeneralOpencode() {
   const [loading, setLoading] = useState(true);
   const [systemConfig, setSystemConfig] = useState(null);
   const [serverUrl, setServerUrl] = useState("http://localhost:4096");
-  const [selectedModel, setSelectedModel] = useState("opencode/big-pickle");
+  const [selectedModel, setSelectedModel] = useState("system-llm");
   const [customModel, setCustomModel] = useState("");
+  const [savingModel, setSavingModel] = useState(false);
 
   // MCP configurations
   const [mcpConfig, setMcpConfig] = useState(null);
@@ -59,6 +60,8 @@ export default function GeneralOpencode() {
       if (data.success) {
         setSystemConfig(data);
         if (data.serverUrl) setServerUrl(data.serverUrl);
+        if (data.selectedModel) setSelectedModel(data.selectedModel);
+        if (data.customModel) setCustomModel(data.customModel);
         checkServerConnection(data.serverUrl);
       } else {
         showToast("Error loading system settings.", "error");
@@ -123,6 +126,35 @@ export default function GeneralOpencode() {
       }
     } catch (e) {
       setConnectionStatus("disconnected");
+    }
+  };
+
+  const handleSaveModel = async () => {
+    setSavingModel(true);
+    try {
+      const response = await fetch(`${API_BASE}/opencode/config`, {
+        method: "POST",
+        headers: {
+          ...baseHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          selectedModel,
+          customModel,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to save model configuration.");
+      }
+
+      showToast("Model configuration saved successfully!", "success");
+    } catch (e) {
+      console.error(e);
+      showToast(e.message, "error");
+    } finally {
+      setSavingModel(false);
     }
   };
 
@@ -552,6 +584,11 @@ export default function GeneralOpencode() {
                 onChange={(e) => setSelectedModel(e.target.value)}
                 className="bg-theme-bg-primary text-sm text-theme-text-primary px-3 py-2 rounded-lg border border-white/10 focus:border-emerald-500 focus:outline-none w-full cursor-pointer"
               >
+                <option value="system-llm">
+                  {systemConfig
+                    ? `AnythingLLM System LLM (${systemConfig.provider}: ${systemConfig.model || "default"})`
+                    : "AnythingLLM System LLM (Loading...)"}
+                </option>
                 <option value="opencode/big-pickle">
                   OpenCode Zen: Big Pickle (Free stealth model)
                 </option>
@@ -578,6 +615,17 @@ export default function GeneralOpencode() {
                   />
                 </div>
               )}
+
+              <div className="flex justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={handleSaveModel}
+                  disabled={savingModel}
+                  className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-all duration-200"
+                >
+                  {savingModel ? "Saving..." : "Save Model Settings"}
+                </button>
+              </div>
             </div>
 
             {/* Prompt input Form */}

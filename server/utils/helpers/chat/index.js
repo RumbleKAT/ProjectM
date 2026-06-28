@@ -442,7 +442,46 @@ function fillSourceWindow({
 }
 
 module.exports = {
+  filterSources,
   messageArrayCompressor,
   messageStringCompressor,
   fillSourceWindow,
 };
+
+/**
+ * Filters the sources based on word overlap with the given response text.
+ * @param {object[]} sources - The list of sources
+ * @param {string} responseText - The LLM's full response
+ * @returns {object[]} - The filtered list of sources
+ */
+function filterSources(sources = [], responseText = "") {
+  if (!responseText || sources.length === 0) return sources;
+
+  const responseWords = new Set(
+    responseText
+      .toLowerCase()
+      .split(/\W+/)
+      .filter((w) => w.length > 3)
+  );
+
+  if (responseWords.size === 0) return sources;
+
+  return sources.filter((source) => {
+    if (!source.text) return true; // keep if no text to compare
+
+    const sourceWords = new Set(
+      source.text
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length > 3)
+    );
+
+    let matchCount = 0;
+    for (const word of sourceWords) {
+      if (responseWords.has(word)) matchCount++;
+    }
+
+    // Keep if at least 5 meaningful words overlap
+    return matchCount >= 5;
+  });
+}

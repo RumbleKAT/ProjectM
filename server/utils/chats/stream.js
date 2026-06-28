@@ -176,6 +176,43 @@ async function streamChatWithWorkspace(
     });
   });
 
+  const { Document } = require("../../models/documents");
+  const documentsInWorkspace = await Document.forWorkspace(workspace.id);
+  const keywordMatchedDocs = [];
+
+  for (const doc of documentsInWorkspace) {
+    const filename = doc.docpath.split("/").pop();
+    if (updatedMessage.toLowerCase().includes(filename.toLowerCase())) {
+      keywordMatchedDocs.push(doc);
+    }
+  }
+
+  if (keywordMatchedDocs.length > 0) {
+    const docManager = new DocumentManager({ workspace, maxTokens: LLMConnector.promptWindowLimit() });
+    const fs = require("fs");
+    const path = require("path");
+    
+    for (const doc of keywordMatchedDocs) {
+      try {
+        const filePath = path.resolve(docManager.documentStoragePath, doc.docpath);
+        if (fs.existsSync(filePath)) {
+          const data = JSON.parse(fs.readFileSync(filePath, { encoding: "utf-8" }));
+          if (data.hasOwnProperty("pageContent")) {
+            const identifier = sourceIdentifier(data);
+            if (!pinnedDocIdentifiers.includes(identifier)) {
+              pinnedDocIdentifiers.push(identifier);
+              contextTexts.push(data.pageContent);
+              sources.push({
+                text: data.pageContent.slice(0, 1_000) + "...continued on in source document...",
+                ...data,
+              });
+            }
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
   const vectorSearchResults =
     embeddingsCount !== 0
       ? await VectorDb.performSimilaritySearch({
@@ -289,9 +326,12 @@ async function streamChatWithWorkspace(
 
     completeText = textResponse;
     metrics = performanceMetrics;
+    const { filterSources } = require("../helpers/chat");
+    const filteredSources = filterSources(sources, completeText);
+
     writeResponseChunk(response, {
       uuid,
-      sources,
+      sources: filteredSources,
       type: "textResponseChunk",
       textResponse: completeText,
       close: true,
@@ -305,10 +345,13 @@ async function streamChatWithWorkspace(
     });
     completeText = await LLMConnector.handleStream(response, stream, {
       uuid,
-      sources,
+      sources: [], // Do not send sources during the stream
     });
     metrics = stream.metrics;
   }
+
+  const { filterSources } = require("../helpers/chat");
+  const filteredSources = filterSources(sources, completeText);
 
   if (completeText?.length > 0) {
     const { chat } = await WorkspaceChats.new({
@@ -316,7 +359,7 @@ async function streamChatWithWorkspace(
       prompt: message,
       response: {
         text: completeText,
-        sources,
+        sources: filteredSources,
         type: chatMode,
         attachments,
         metrics,
@@ -332,6 +375,7 @@ async function streamChatWithWorkspace(
       error: false,
       chatId: chat.id,
       metrics,
+      sources: filteredSources,
     });
     return;
   }

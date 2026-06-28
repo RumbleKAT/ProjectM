@@ -12,35 +12,7 @@ const os = require("os");
 const fs = require("fs");
 const path = require("path");
 
-function getLLMProviderConfig() {
-  const provider = process.env.LLM_PROVIDER || "openai";
-  let apiKey = "";
-  let model = "";
-  let baseUrl = "";
-
-  if (provider === "openai") {
-    apiKey = process.env.OPEN_AI_KEY || "";
-    model = process.env.OPEN_MODEL_PREF || "gpt-4o";
-  } else if (provider === "gemini") {
-    apiKey = process.env.GEMINI_API_KEY || "";
-    model = process.env.GEMINI_LLM_MODEL_PREF || "gemini-2.0-flash-lite";
-  } else if (provider === "anthropic") {
-    apiKey = process.env.ANTHROPIC_API_KEY || "";
-    model = process.env.ANTHROPIC_MODEL_PREF || "claude-3-5-sonnet-20241022";
-  } else if (provider === "ollama") {
-    baseUrl = process.env.OLLAMA_BASE_PATH || "";
-    model = process.env.OLLAMA_MODEL_PREF || "";
-  } else if (provider === "lmstudio") {
-    baseUrl = process.env.LMSTUDIO_BASE_PATH || "";
-    model = process.env.LMSTUDIO_MODEL_PREF || "";
-  } else if (provider === "localai") {
-    apiKey = process.env.LOCAL_AI_API_KEY || "";
-    baseUrl = process.env.LOCAL_AI_BASE_PATH || "";
-    model = process.env.LOCAL_AI_MODEL_PREF || "";
-  }
-
-  return { provider, model, apiKey, baseUrl };
-}
+const { getLLMProviderConfig, formatUrlForDocker } = require("../utils/opencodeServerManager");
 
 function getConfigFilePaths() {
   const homeDir = os.homedir();
@@ -72,6 +44,10 @@ function opencodeEndpoints(app) {
       try {
         const config = getLLMProviderConfig();
         const sdk = await loadOpencodeSdk();
+
+        const { projectPath } = getConfigFilePaths();
+        const opencodeJson = readJSONFile(projectPath) || {};
+
         response.status(200).json({
           success: true,
           provider: config.provider,
@@ -80,7 +56,35 @@ function opencodeEndpoints(app) {
           baseUrl: config.baseUrl,
           serverUrl: process.env.OPENCODE_SERVER_URL || "http://localhost:4096",
           sdkLoaded: !!sdk,
+          selectedModel: opencodeJson.selectedModel || "system-llm",
+          customModel: opencodeJson.customModel || "",
         });
+      } catch (e) {
+        console.error(e);
+        response.status(500).json({ success: false, error: e.message });
+      }
+    }
+  );
+
+  app.post(
+    "/opencode/config",
+    [validatedRequest, flexUserRoleValid([ROLES.all])],
+    async (request, response) => {
+      try {
+        const { selectedModel, customModel } = reqBody(request);
+        const { projectPath } = getConfigFilePaths();
+
+        let config = readJSONFile(projectPath) || {};
+        config.selectedModel = selectedModel;
+        config.customModel = customModel;
+
+        const targetDir = path.dirname(projectPath);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+
+        fs.writeFileSync(projectPath, JSON.stringify(config, null, 2), "utf-8");
+        response.status(200).json({ success: true });
       } catch (e) {
         console.error(e);
         response.status(500).json({ success: false, error: e.message });
@@ -156,21 +160,118 @@ function opencodeEndpoints(app) {
           });
         }
 
+        if (
+          serverUrl.includes("localhost") ||
+          serverUrl.includes("127.0.0.1") ||
+          serverUrl === "http://opencode-server:4096"
+        ) {
+          const { start: startOpencodeServer } = require("../utils/opencodeServerManager");
+          await startOpencodeServer();
+        }
+
+        // Parse the model string to identify target provider
+        let targetProvider = undefined;
+        let targetModelId = undefined;
+
+        if (model && model !== "system-llm") {
+          const firstSlashIndex = model.indexOf("/");
+          if (firstSlashIndex !== -1) {
+            targetProvider = model.substring(0, firstSlashIndex);
+            targetModelId = model.substring(firstSlashIndex + 1);
+          }
+        }
+
         // Dynamically inject AnythingLLM credentials to process.env if they are missing
-        const config = getLLMProviderConfig();
+        const config = getLLMProviderConfig(targetProvider);
+        const providerEnvKeys = {
+          openai: "OPENAI_API_KEY",
+          gemini: "GEMINI_API_KEY",
+          anthropic: "ANTHROPIC_API_KEY",
+          azure: "AZURE_OPENAI_KEY",
+          lmstudio: "LMSTUDIO_AUTH_TOKEN",
+          localai: "LOCAL_AI_API_KEY",
+          ollama: "OLLAMA_AUTH_TOKEN",
+          togetherai: "TOGETHER_AI_API_KEY",
+          fireworksai: "FIREWORKS_AI_LLM_API_KEY",
+          perplexity: "PERPLEXITY_API_KEY",
+          openrouter: "OPENROUTER_API_KEY",
+          mistral: "MISTRAL_API_KEY",
+          groq: "GROQ_API_KEY",
+          textgenwebui: "TEXT_GEN_WEB_UI_API_KEY",
+          cohere: "COHERE_API_KEY",
+          litellm: "LITE_LLM_API_KEY",
+          "generic-openai": "GENERIC_OPEN_AI_API_KEY",
+          bedrock: "AWS_BEDROCK_LLM_API_KEY",
+          deepseek: "DEEPSEEK_API_KEY",
+          apipie: "APIPIE_LLM_API_KEY",
+          novita: "NOVITA_LLM_API_KEY",
+          xai: "XAI_LLM_API_KEY",
+          "nvidia-nim": "NVIDIA_NIM_LLM_API_KEY",
+          ppio: "PPIO_API_KEY",
+          moonshotai: "MOONSHOT_AI_API_KEY",
+          cometapi: "COMETAPI_LLM_API_KEY",
+          zai: "ZAI_API_KEY",
+          giteeai: "GITEE_AI_API_KEY",
+          sambanova: "SAMBANOVA_LLM_API_KEY",
+          lemonade: "LEMONADE_LLM_API_KEY",
+          minimax: "MINIMAX_API_KEY",
+          cerebras: "CEREBRAS_API_KEY",
+        };
+
+        const providerBaseUrlKeys = {
+          azure: "AZURE_OPENAI_ENDPOINT",
+          lmstudio: "LMSTUDIO_BASE_PATH",
+          localai: "LOCAL_AI_BASE_PATH",
+          ollama: "OLLAMA_BASE_PATH",
+          koboldcpp: "KOBOLD_CPP_BASE_PATH",
+          textgenwebui: "TEXT_GEN_WEB_UI_BASE_PATH",
+          litellm: "LITE_LLM_BASE_PATH",
+          "generic-openai": "GENERIC_OPEN_AI_BASE_PATH",
+          bedrock: "AWS_BEDROCK_LLM_REGION",
+          "nvidia-nim": "NVIDIA_NIM_LLM_BASE_PATH",
+          foundry: "FOUNDRY_BASE_PATH",
+          "docker-model-runner": "DOCKER_MODEL_RUNNER_BASE_PATH",
+          privatemode: "PRIVATEMODE_LLM_BASE_PATH",
+          lemonade: "LEMONADE_LLM_BASE_PATH",
+        };
+
         if (config.apiKey) {
-          if (config.provider === "openai" && !process.env.OPENAI_API_KEY) {
+          const envKey = providerEnvKeys[config.provider];
+          if (envKey && !process.env[envKey]) {
+            process.env[envKey] = config.apiKey;
+          }
+          if (!process.env.OPENAI_API_KEY) {
             process.env.OPENAI_API_KEY = config.apiKey;
-          } else if (
-            config.provider === "gemini" &&
-            !process.env.GEMINI_API_KEY
-          ) {
-            process.env.GEMINI_API_KEY = config.apiKey;
-          } else if (
-            config.provider === "anthropic" &&
-            !process.env.ANTHROPIC_API_KEY
-          ) {
-            process.env.ANTHROPIC_API_KEY = config.apiKey;
+          }
+        }
+
+        if (config.baseUrl) {
+          const baseUrlKey = providerBaseUrlKeys[config.provider];
+          if (baseUrlKey && !process.env[baseUrlKey]) {
+            process.env[baseUrlKey] = config.baseUrl;
+          }
+          if (baseUrlKey && baseUrlKey.endsWith("_BASE_PATH")) {
+            const altKey = baseUrlKey.replace("_BASE_PATH", "_BASE_URL");
+            if (!process.env[altKey]) process.env[altKey] = config.baseUrl;
+          } else if (baseUrlKey && baseUrlKey.endsWith("_BASE_URL")) {
+            const altKey = baseUrlKey.replace("_BASE_URL", "_BASE_PATH");
+            if (!process.env[altKey]) process.env[altKey] = config.baseUrl;
+          }
+          if (config.provider === "lmstudio") {
+            process.env.LMSTUDIO_BASE_URL = config.baseUrl;
+            process.env.LM_STUDIO_BASE_URL = config.baseUrl;
+          } else if (config.provider === "localai") {
+            process.env.LOCAL_AI_BASE_URL = config.baseUrl;
+            process.env.LOCALAI_BASE_URL = config.baseUrl;
+          } else if (config.provider === "ollama") {
+            process.env.OLLAMA_BASE_URL = config.baseUrl;
+            process.env.OLLAMA_HOST = config.baseUrl;
+          }
+          if (!process.env.OPENAI_BASE_URL) {
+            process.env.OPENAI_BASE_URL = config.baseUrl;
+          }
+          if (!process.env.OPENAI_API_BASE) {
+            process.env.OPENAI_API_BASE = config.baseUrl;
           }
         }
 
@@ -200,25 +301,44 @@ function opencodeEndpoints(app) {
         response.flushHeaders();
 
         // Map model format — SDK expects {providerID, modelID} object
+        const opencodeNativeProviders = ["openai", "anthropic", "gemini", "azure", "groq", "mistral", "deepseek", "openrouter", "ollama"];
+
         let modelParam = null;
-        if (model) {
-          const parts = model.split("/");
-          modelParam =
-            parts.length === 2
-              ? { providerID: parts[0], modelID: parts[1] }
-              : { providerID: config.provider, modelID: model };
+        if (model && model !== "system-llm") {
+          const [targetProvider, ...targetModelParts] = model.split("/");
+          const targetModelId = targetModelParts.join("/");
+          if (targetProvider && targetModelId) {
+            if (opencodeNativeProviders.includes(targetProvider)) {
+              modelParam = { providerID: targetProvider, modelID: targetModelId };
+            } else {
+              modelParam = { providerID: "openai", modelID: "gpt-4o" };
+            }
+          } else {
+            if (opencodeNativeProviders.includes(config.provider)) {
+              modelParam = { providerID: config.provider, modelID: model };
+            } else {
+              modelParam = { providerID: "openai", modelID: "gpt-4o" };
+            }
+          }
         } else if (config.model) {
-          modelParam = { providerID: config.provider, modelID: config.model };
+          if (opencodeNativeProviders.includes(config.provider)) {
+            modelParam = { providerID: config.provider, modelID: config.model };
+          } else {
+            modelParam = { providerID: "openai", modelID: "gpt-4o" };
+          }
         } else {
           modelParam = { providerID: "opencode", modelID: "big-pickle" };
         }
 
         // Send prompt and get streaming response
+        const formattedBaseUrl = config.baseUrl ? formatUrlForDocker(config.baseUrl) : undefined;
         const result = await client.session.prompt({
           path: { id: session.id },
           body: {
             parts: [{ type: "text", text: prompt }],
             ...(modelParam ? { model: modelParam } : {}),
+            ...(formattedBaseUrl ? { baseURL: formattedBaseUrl } : {}),
+            apiKey: config.apiKey || "dummy",
           },
           parseAs: "stream",
         });
@@ -270,6 +390,21 @@ function opencodeEndpoints(app) {
                       type: "message",
                       text: part.text,
                     });
+                  } else if (part.type === "tool-call") {
+                    writeResponseChunk(response, {
+                      type: "system",
+                      text: `[Tool] ${part.toolName}(${JSON.stringify(part.args || {})})`,
+                    });
+                  } else if (part.type === "tool-result") {
+                    writeResponseChunk(response, {
+                      type: "system",
+                      text: `[Tool Result] ${part.toolName} completed.`,
+                    });
+                  } else if (part.type === "reasoning" && part.text) {
+                    writeResponseChunk(response, {
+                      type: "reasoning",
+                      text: part.text,
+                    });
                   }
                 }
               }
@@ -299,6 +434,21 @@ function opencodeEndpoints(app) {
                   if (part.type === "text" && part.text) {
                     writeResponseChunk(response, {
                       type: "message",
+                      text: part.text,
+                    });
+                  } else if (part.type === "tool-call") {
+                    writeResponseChunk(response, {
+                      type: "system",
+                      text: `[Tool] ${part.toolName}(${JSON.stringify(part.args || {})})`,
+                    });
+                  } else if (part.type === "tool-result") {
+                    writeResponseChunk(response, {
+                      type: "system",
+                      text: `[Tool Result] ${part.toolName} completed.`,
+                    });
+                  } else if (part.type === "reasoning" && part.text) {
+                    writeResponseChunk(response, {
+                      type: "reasoning",
                       text: part.text,
                     });
                   }

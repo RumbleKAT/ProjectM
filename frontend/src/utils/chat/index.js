@@ -114,6 +114,7 @@ export default function handleChat(
           pending: false,
           chatId,
           metrics,
+          ...(sources ? { sources } : {}),
         };
 
         _chatHistory[chatIdx - 1] = { ..._chatHistory[chatIdx - 1], chatId }; // update prompt with chatID

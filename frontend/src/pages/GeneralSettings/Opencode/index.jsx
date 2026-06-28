@@ -146,7 +146,9 @@ export default function GeneralOpencode() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to save model configuration.");
+        throw new Error(
+          errorData.error || "Failed to save model configuration."
+        );
       }
 
       showToast("Model configuration saved successfully!", "success");

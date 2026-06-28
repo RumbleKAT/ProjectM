@@ -22,6 +22,7 @@ function takeBufferedCitations(uuid) {
 const handledEvents = [
   "statusResponse",
   "fileDownloadCard",
+  "clientCsvDownloadCard",
   "awaitingFeedback",
   "wssFailure",
   "rechartVisualize",
@@ -247,6 +248,24 @@ export default function handleSocketResponse(socket, event, setChatHistory) {
             : msg
         );
       }
+    });
+  }
+
+  if (data.type === "clientCsvDownloadCard") {
+    return setChatHistory((prev) => {
+      return [
+        ...prev.filter((msg) => !!msg.content),
+        {
+          type: "clientCsvDownloadCard",
+          uuid: v4(),
+          content: data.content,
+          role: "assistant",
+          sources: [],
+          closed: true,
+          error: null,
+          animate: false,
+        },
+      ];
     });
   }
 

@@ -24,7 +24,8 @@ module.exports.CreateExcelFile = {
             "Create an Excel spreadsheet (.xlsx) from CSV data. " +
             "Supports multiple sheets, automatic type detection (numbers, dates, booleans), " +
             "header styling, column auto-fit, zebra striping, and frozen panes. " +
-            "Provide data in CSV format with comma, semicolon, tab, or pipe delimiters.",
+            "Provide data in CSV format with comma, semicolon, tab, or pipe delimiters. " +
+            "CRITICAL: Before calling this tool to generate factual reports or calendars, you MUST have already verified all dates, numbers, and structural logic in your <thought> block to prevent hallucinations.",
           examples: [
             {
               prompt: "Create an Excel file with sales data",

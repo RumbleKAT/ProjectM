@@ -13,7 +13,8 @@ module.exports.CreatePdfFile = {
           description:
             "Create a PDF document from markdown or plain text content. " +
             "The content will be styled and converted to a professional PDF document. " +
-            "Supports markdown formatting including headers, lists, code blocks, tables, and more.",
+            "Supports markdown formatting including headers, lists, code blocks, tables, and more. " +
+            "CRITICAL: Before calling this tool to generate factual reports or calendars, you MUST have already verified all dates, numbers, and structural logic in your <thought> block to prevent hallucinations.",
           examples: [
             {
               prompt: "Create a PDF report about quarterly sales",

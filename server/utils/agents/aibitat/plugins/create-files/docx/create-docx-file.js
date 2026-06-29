@@ -23,7 +23,8 @@ module.exports.CreateDocxFile = {
           super: aibitat,
           name: this.name,
           description:
-            "Create a Microsoft Word document (.docx) from markdown or plain text content. Supports professional styling with color themes, title pages, and running headers/footers.",
+            "Create a Microsoft Word document (.docx) from markdown or plain text content. Supports professional styling with color themes, title pages, and running headers/footers. " +
+            "CRITICAL: Before calling this tool to generate factual reports or calendars, you MUST have already verified all dates, numbers, and structural logic in your <thought> block to prevent hallucinations.",
           examples: [
             {
               prompt: "Create a Word document with meeting notes",

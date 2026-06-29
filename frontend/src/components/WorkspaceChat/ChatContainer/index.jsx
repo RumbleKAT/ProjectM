@@ -17,7 +17,7 @@ import handleChat, { ABORT_STREAM_EVENT } from "@/utils/chat";
 import { agentReplyReducer } from "@/utils/chat/agentReplyState";
 import { isMobile } from "react-device-detect";
 import { SidebarMobileHeader } from "../../Sidebar";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useBlocker } from "react-router-dom";
 import { v4 } from "uuid";
 import handleSocketResponse, {
   websocketURI,
@@ -44,6 +44,7 @@ import WorkspaceModelPicker from "./WorkspaceModelPicker";
 import { ChatSidebarProvider } from "./ChatSidebar";
 import SourcesSidebar from "./SourcesSidebar";
 import MemoriesSidebar from "./MemoriesSidebar";
+import NavigationConfirmModal from "./NavigationConfirmModal";
 
 export default function ChatContainer({
   workspace,
@@ -66,6 +67,11 @@ export default function ChatContainer({
   const pendingResetRef = useRef(false);
   const pendingWsMessagesRef = useRef([]);
   const activeThreadSlug = threadSlug;
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      (loadingResponse || agentReplyPending || !!websocket) && currentLocation.pathname !== nextLocation.pathname
+  );
 
   const isEmpty =
     chatHistory.length === 0 && !sessionStorage.getItem(PENDING_HOME_MESSAGE);
@@ -486,6 +492,14 @@ export default function ChatContainer({
   if (isEmpty) {
     return (
       <ChatSidebarProvider>
+        <NavigationConfirmModal
+          isOpen={blocker.state === "blocked"}
+          onConfirm={() => {
+            window.dispatchEvent(new CustomEvent(ABORT_STREAM_EVENT));
+            blocker.proceed();
+          }}
+          onCancel={() => blocker.reset()}
+        />
         <div
           style={{ height: isMobile ? "100%" : "calc(100% - 32px)" }}
           className="relative flex md:ml-[2px] md:mr-[16px] md:my-[16px] w-full h-full z-[2]"
@@ -544,6 +558,14 @@ export default function ChatContainer({
 
   return (
     <ChatSidebarProvider>
+      <NavigationConfirmModal
+        isOpen={blocker.state === "blocked"}
+        onConfirm={() => {
+          window.dispatchEvent(new CustomEvent(ABORT_STREAM_EVENT));
+          blocker.proceed();
+        }}
+        onCancel={() => blocker.reset()}
+      />
       <div
         style={{ height: isMobile ? "100%" : "calc(100% - 32px)" }}
         className="relative flex md:ml-[2px] md:mr-[16px] md:my-[16px] w-full h-full z-[2]"

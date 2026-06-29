@@ -115,7 +115,7 @@ export default function WorkspaceModelPicker({ workspaceSlug = null }) {
           className={`group border-none cursor-pointer px-2.5 py-1 flex items-center rounded-full transition-all ${
             showSelector
               ? "bg-zinc-700 light:bg-slate-200"
-              : "hover:bg-zinc-700 light:hover:bg-slate-200"
+              : "bg-zinc-800 light:bg-slate-100 hover:bg-zinc-700 light:hover:bg-slate-200"
           }`}
         >
           <span

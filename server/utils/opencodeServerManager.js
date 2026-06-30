@@ -14,7 +14,10 @@ let lastConfig = null;
 
 function formatUrlForDocker(url) {
   if (!url) return url;
-  return url.replace(/:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/, "://host.docker.internal$2");
+  return url.replace(
+    /:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/,
+    "://host.docker.internal$2"
+  );
 }
 
 const { getBaseLLMProviderModel } = require("./helpers");
@@ -185,12 +188,20 @@ function buildDockerEnv() {
     if (baseUrlKey) {
       envEntries.push(`${baseUrlKey}=${formattedUrl}`);
       if (baseUrlKey.endsWith("_BASE_PATH")) {
-        envEntries.push(`${baseUrlKey.replace("_BASE_PATH", "_BASE_URL")}=${formattedUrl}`);
+        envEntries.push(
+          `${baseUrlKey.replace("_BASE_PATH", "_BASE_URL")}=${formattedUrl}`
+        );
       } else if (baseUrlKey.endsWith("_BASE_URL")) {
-        envEntries.push(`${baseUrlKey.replace("_BASE_URL", "_BASE_PATH")}=${formattedUrl}`);
+        envEntries.push(
+          `${baseUrlKey.replace("_BASE_URL", "_BASE_PATH")}=${formattedUrl}`
+        );
       } else if (baseUrlKey.endsWith("_ENDPOINT")) {
-        envEntries.push(`${baseUrlKey.replace("_ENDPOINT", "_BASE_URL")}=${formattedUrl}`);
-        envEntries.push(`${baseUrlKey.replace("_ENDPOINT", "_BASE_PATH")}=${formattedUrl}`);
+        envEntries.push(
+          `${baseUrlKey.replace("_ENDPOINT", "_BASE_URL")}=${formattedUrl}`
+        );
+        envEntries.push(
+          `${baseUrlKey.replace("_ENDPOINT", "_BASE_PATH")}=${formattedUrl}`
+        );
       }
     }
     if (llmConfig.provider === "lmstudio") {
@@ -410,4 +421,10 @@ function getStatus() {
   return { running: false, url: null };
 }
 
-module.exports = { start, stop, getStatus, getLLMProviderConfig, formatUrlForDocker };
+module.exports = {
+  start,
+  stop,
+  getStatus,
+  getLLMProviderConfig,
+  formatUrlForDocker,
+};

@@ -188,22 +188,32 @@ async function streamChatWithWorkspace(
   }
 
   if (keywordMatchedDocs.length > 0) {
-    const docManager = new DocumentManager({ workspace, maxTokens: LLMConnector.promptWindowLimit() });
+    const docManager = new DocumentManager({
+      workspace,
+      maxTokens: LLMConnector.promptWindowLimit(),
+    });
     const fs = require("fs");
     const path = require("path");
-    
+
     for (const doc of keywordMatchedDocs) {
       try {
-        const filePath = path.resolve(docManager.documentStoragePath, doc.docpath);
+        const filePath = path.resolve(
+          docManager.documentStoragePath,
+          doc.docpath
+        );
         if (fs.existsSync(filePath)) {
-          const data = JSON.parse(fs.readFileSync(filePath, { encoding: "utf-8" }));
+          const data = JSON.parse(
+            fs.readFileSync(filePath, { encoding: "utf-8" })
+          );
           if (data.hasOwnProperty("pageContent")) {
             const identifier = sourceIdentifier(data);
             if (!pinnedDocIdentifiers.includes(identifier)) {
               pinnedDocIdentifiers.push(identifier);
               contextTexts.push(data.pageContent);
               sources.push({
-                text: data.pageContent.slice(0, 1_000) + "...continued on in source document...",
+                text:
+                  data.pageContent.slice(0, 1_000) +
+                  "...continued on in source document...",
                 ...data,
               });
             }

@@ -12,7 +12,10 @@ const os = require("os");
 const fs = require("fs");
 const path = require("path");
 
-const { getLLMProviderConfig, formatUrlForDocker } = require("../utils/opencodeServerManager");
+const {
+  getLLMProviderConfig,
+  formatUrlForDocker,
+} = require("../utils/opencodeServerManager");
 
 function getConfigFilePaths() {
   const homeDir = os.homedir();
@@ -165,7 +168,9 @@ function opencodeEndpoints(app) {
           serverUrl.includes("127.0.0.1") ||
           serverUrl === "http://opencode-server:4096"
         ) {
-          const { start: startOpencodeServer } = require("../utils/opencodeServerManager");
+          const {
+            start: startOpencodeServer,
+          } = require("../utils/opencodeServerManager");
           await startOpencodeServer();
         }
 
@@ -301,7 +306,17 @@ function opencodeEndpoints(app) {
         response.flushHeaders();
 
         // Map model format — SDK expects {providerID, modelID} object
-        const opencodeNativeProviders = ["openai", "anthropic", "gemini", "azure", "groq", "mistral", "deepseek", "openrouter", "ollama"];
+        const opencodeNativeProviders = [
+          "openai",
+          "anthropic",
+          "gemini",
+          "azure",
+          "groq",
+          "mistral",
+          "deepseek",
+          "openrouter",
+          "ollama",
+        ];
 
         let modelParam = null;
         if (model && model !== "system-llm") {
@@ -309,7 +324,10 @@ function opencodeEndpoints(app) {
           const targetModelId = targetModelParts.join("/");
           if (targetProvider && targetModelId) {
             if (opencodeNativeProviders.includes(targetProvider)) {
-              modelParam = { providerID: targetProvider, modelID: targetModelId };
+              modelParam = {
+                providerID: targetProvider,
+                modelID: targetModelId,
+              };
             } else {
               modelParam = { providerID: "openai", modelID: "gpt-4o" };
             }
@@ -331,7 +349,9 @@ function opencodeEndpoints(app) {
         }
 
         // Send prompt and get streaming response
-        const formattedBaseUrl = config.baseUrl ? formatUrlForDocker(config.baseUrl) : undefined;
+        const formattedBaseUrl = config.baseUrl
+          ? formatUrlForDocker(config.baseUrl)
+          : undefined;
         const result = await client.session.prompt({
           path: { id: session.id },
           body: {

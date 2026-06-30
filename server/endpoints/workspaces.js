@@ -11,7 +11,11 @@ const { Workspace } = require("../models/workspace");
 const { Document } = require("../models/documents");
 const { DocumentVectors } = require("../models/vectors");
 const { WorkspaceChats } = require("../models/workspaceChats");
-const { getVectorDbClass, stripThinkingFromText, getLLMProvider } = require("../utils/helpers");
+const {
+  getVectorDbClass,
+  stripThinkingFromText,
+  getLLMProvider,
+} = require("../utils/helpers");
 const { handleFileUpload, handlePfpUpload } = require("../utils/files/multer");
 const { validatedRequest } = require("../utils/middleware/validatedRequest");
 const { Telemetry } = require("../models/telemetry");
@@ -24,7 +28,10 @@ const {
   WorkspaceSuggestedMessages,
 } = require("../models/workspacesSuggestedMessages");
 const { validWorkspaceSlug } = require("../utils/middleware/validWorkspace");
-const { convertToChatHistory, convertToPromptHistory } = require("../utils/helpers/chat/responses");
+const {
+  convertToChatHistory,
+  convertToPromptHistory,
+} = require("../utils/helpers/chat/responses");
 const { CollectorApi } = require("../utils/collectorApi");
 const {
   determineWorkspacePfpFilepath,
@@ -1197,11 +1204,17 @@ function workspaceEndpoints(app) {
         );
 
         const promptHistory = convertToPromptHistory(history);
-        const historyTokenCount = promptHistory.length > 0 ? tokenManager.statsFrom(promptHistory) : 0;
-        const docTokenCount = await Workspace._getCurrentContextTokenCount(workspace.id);
+        const historyTokenCount =
+          promptHistory.length > 0 ? tokenManager.statsFrom(promptHistory) : 0;
+        const docTokenCount = await Workspace._getCurrentContextTokenCount(
+          workspace.id
+        );
 
-        const totalTokens = systemPromptTokenCount + historyTokenCount + docTokenCount;
-        const percentage = Math.min((totalTokens / limit) * 100, 100).toFixed(1);
+        const totalTokens =
+          systemPromptTokenCount + historyTokenCount + docTokenCount;
+        const percentage = Math.min((totalTokens / limit) * 100, 100).toFixed(
+          1
+        );
 
         response.status(200).json({ limit, usage: totalTokens, percentage });
       } catch (e) {
@@ -1236,11 +1249,12 @@ function workspaceEndpoints(app) {
         }
 
         const promptHistory = convertToPromptHistory(history);
-        
-        const llmProvider = workspace.chatProvider || process.env.LLM_PROVIDER || null;
+
+        const llmProvider =
+          workspace.chatProvider || process.env.LLM_PROVIDER || null;
         const llmModel = workspace.chatModel || null;
         const llm = getLLMProvider({ provider: llmProvider, model: llmModel });
-        
+
         if (!llm) {
           throw new Error("No LLM provider available for compaction.");
         }
@@ -1248,7 +1262,9 @@ function workspaceEndpoints(app) {
         const compactionPrompt = `Summarize the following conversation into a concise summary that retains all important context, entities, and facts so it can be used to remember the conversation later:\n\n${JSON.stringify(promptHistory)}`;
 
         const messages = [{ role: "user", content: compactionPrompt }];
-        const summary = await llm.getChatCompletion(messages, { temperature: 0.2 });
+        const summary = await llm.getChatCompletion(messages, {
+          temperature: 0.2,
+        });
 
         // Delete all old chats in the default thread
         await WorkspaceChats.delete({

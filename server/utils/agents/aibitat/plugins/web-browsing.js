@@ -972,7 +972,7 @@ const webBrowsing = {
             const searchURL = new URL("https://html.duckduckgo.com/html");
             searchURL.searchParams.append("q", query);
 
-            const response = await fetch(searchURL.toString())
+            let response = await fetch(searchURL.toString())
               .then((res) => {
                 if (res.ok) return res.text();
                 throw new Error(
@@ -986,7 +986,36 @@ const webBrowsing = {
                 return null;
               });
 
-            if (!response) return `There was an error searching DuckDuckGo.`;
+            if (!response) {
+              this.super.handlerProps.log(
+                `DuckDuckGo rate-limited or failed. Falling back to Collector...`
+              );
+              this.super.introspect(
+                `${this.caller}: DuckDuckGo fetch failed. Attempting fallback via Collector...`
+              );
+              try {
+                const { CollectorApi } = require("../../../collectorApi");
+                const collector = new CollectorApi();
+                const fallbackResult = await collector.getLinkContent(
+                  searchURL.toString(),
+                  "html"
+                );
+                if (
+                  fallbackResult &&
+                  fallbackResult.success &&
+                  fallbackResult.content
+                ) {
+                  response = fallbackResult.content;
+                } else {
+                  return `There was an error searching DuckDuckGo and the fallback collector failed.`;
+                }
+              } catch (e) {
+                this.super.handlerProps.log(
+                  `Collector Fallback Error: ${e.message}`
+                );
+                return `There was an error searching DuckDuckGo. Fallback also failed: ${e.message}`;
+              }
+            }
             const html = response;
             const data = [];
             const results = html.split('<div class="result results_links');

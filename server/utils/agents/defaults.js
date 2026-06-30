@@ -86,7 +86,6 @@ const WORKSPACE_AGENT = {
     role +=
       "\n\nWhen asked to perform tasks requiring strict logic, math, or date calculations (such as generating a calendar or analyzing data), you MUST use `<thought>` ... `</thought>` tags to write out your step-by-step reasoning, verify facts, and double-check your calculations BEFORE executing any tool. You MUST ensure that all dates, days of the week, and numerical values are 100% accurate before generating a file.";
 
-
     const functions = [
       ...(await agentSkillsFromSystemSettings()),
       ...clarifyingQuestionsSkills,

@@ -17,7 +17,10 @@ const {
   validWorkspaceAndThreadSlug,
 } = require("../utils/middleware/validWorkspace");
 const { WorkspaceChats } = require("../models/workspaceChats");
-const { convertToChatHistory, convertToPromptHistory } = require("../utils/helpers/chat/responses");
+const {
+  convertToChatHistory,
+  convertToPromptHistory,
+} = require("../utils/helpers/chat/responses");
 const { getModelTag } = require("./utils");
 const { TokenManager } = require("../utils/helpers/tiktoken");
 const { getLLMProvider } = require("../utils/helpers");
@@ -299,14 +302,18 @@ function workspaceThreadEndpoints(app) {
         );
 
         const promptHistory = convertToPromptHistory(history);
-        const historyTokenCount = promptHistory.length > 0 ? tokenManager.statsFrom(promptHistory) : 0;
+        const historyTokenCount =
+          promptHistory.length > 0 ? tokenManager.statsFrom(promptHistory) : 0;
         const docTokenCount = await Workspace._getCurrentContextTokenCount(
           workspace.id,
           thread.id
         );
 
-        const totalTokens = systemPromptTokenCount + historyTokenCount + docTokenCount;
-        const percentage = Math.min((totalTokens / limit) * 100, 100).toFixed(1);
+        const totalTokens =
+          systemPromptTokenCount + historyTokenCount + docTokenCount;
+        const percentage = Math.min((totalTokens / limit) * 100, 100).toFixed(
+          1
+        );
 
         response.status(200).json({ limit, usage: totalTokens, percentage });
       } catch (e) {
@@ -346,11 +353,12 @@ function workspaceThreadEndpoints(app) {
         }
 
         const promptHistory = convertToPromptHistory(history);
-        
-        const llmProvider = workspace.chatProvider || process.env.LLM_PROVIDER || null;
+
+        const llmProvider =
+          workspace.chatProvider || process.env.LLM_PROVIDER || null;
         const llmModel = workspace.chatModel || null;
         const llm = getLLMProvider({ provider: llmProvider, model: llmModel });
-        
+
         if (!llm) {
           throw new Error("No LLM provider available for compaction.");
         }
@@ -358,7 +366,9 @@ function workspaceThreadEndpoints(app) {
         const compactionPrompt = `Summarize the following conversation into a concise summary that retains all important context, entities, and facts so it can be used to remember the conversation later:\n\n${JSON.stringify(promptHistory)}`;
 
         const messages = [{ role: "user", content: compactionPrompt }];
-        const summary = await llm.getChatCompletion(messages, { temperature: 0.2 });
+        const summary = await llm.getChatCompletion(messages, {
+          temperature: 0.2,
+        });
 
         // Delete all old chats in the thread
         await WorkspaceChats.delete({

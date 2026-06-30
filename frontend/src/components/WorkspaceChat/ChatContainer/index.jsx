@@ -70,7 +70,8 @@ export default function ChatContainer({
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      (loadingResponse || agentReplyPending || !!websocket) && currentLocation.pathname !== nextLocation.pathname
+      (loadingResponse || agentReplyPending || !!websocket) &&
+      currentLocation.pathname !== nextLocation.pathname
   );
 
   const isEmpty =

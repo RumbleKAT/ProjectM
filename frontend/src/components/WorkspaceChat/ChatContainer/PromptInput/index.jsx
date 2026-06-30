@@ -18,6 +18,7 @@ import usePromptInputStorage from "@/hooks/usePromptInputStorage";
 import ToolsMenu, { TOOLS_MENU_KEYBOARD_EVENT } from "./ToolsMenu";
 import { useSearchParams } from "react-router-dom";
 import { useIsAgentSessionActive } from "@/utils/chat/agent";
+import WorkspaceThread from "@/models/workspaceThread";
 
 export const PROMPT_INPUT_ID = "primary-prompt-input";
 export const PROMPT_INPUT_EVENT = "set_prompt_input";
@@ -60,6 +61,32 @@ export default function PromptInput({
   const redoStack = useRef([]);
   const { textSizeClass } = useTextSize();
   const [searchParams] = useSearchParams();
+  const [contextUsage, setContextUsage] = useState({
+    limit: 4096,
+    usage: 0,
+    percentage: 0,
+  });
+  const [isCompacting, setIsCompacting] = useState(false);
+
+  useEffect(() => {
+    if (!isStreaming && workspaceSlug) {
+      WorkspaceThread.contextUsage(workspaceSlug, threadSlug).then((data) => {
+        setContextUsage(data);
+      });
+    }
+  }, [isStreaming, workspaceSlug, threadSlug]);
+
+  const handleCompact = async () => {
+    setIsCompacting(true);
+    const { success } = await WorkspaceThread.compact(
+      workspaceSlug,
+      threadSlug
+    );
+    setIsCompacting(false);
+    if (success) {
+      window.location.reload();
+    }
+  };
 
   // Synchronizes prompt input value with localStorage, scoped to the current thread.
   usePromptInputStorage({
@@ -388,16 +415,40 @@ export default function PromptInput({
                     textareaRef={textareaRef}
                     autoOpenedToolsRef={autoOpenedToolsRef}
                   />
+                  {workspaceSlug && (
+                    <div className="text-xs text-zinc-400 light:text-slate-500 ml-4 flex-1">
+                      {contextUsage.percentage || 0}% 사용 (
+                      {Math.max(
+                        100 - (contextUsage.percentage || 0),
+                        0
+                      ).toFixed(1)}
+                      % 남음) | {contextUsage.usage || 0}/
+                      {contextUsage.limit || 4096} 토큰
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-x-2 items-center">
                   <SpeechToText sendCommand={sendCommand} />
                   {isStreaming ? (
                     <StopGenerationButton />
+                  ) : contextUsage.percentage >= 100 ? (
+                    <button
+                      type="button"
+                      onClick={handleCompact}
+                      disabled={isCompacting}
+                      className={`border-none flex justify-center items-center rounded-full px-3 h-8 transition-all cursor-pointer bg-orange-500 hover:bg-orange-600 text-white`}
+                      data-tooltip-id="compact-history"
+                      data-tooltip-content="히스토리 압축(Compact)"
+                    >
+                      <span className="text-sm font-medium">
+                        {isCompacting ? "압축 중..." : "압축(Compact)"}
+                      </span>
+                    </button>
                   ) : (
                     <SendPromptButton
                       formRef={formRef}
                       promptInput={promptInput}
-                      isDisabled={isDisabled}
+                      isDisabled={isDisabled || contextUsage.percentage >= 100}
                       agentReplyPending={agentReplyPending}
                     />
                   )}

@@ -17,8 +17,11 @@ const {
   validWorkspaceAndThreadSlug,
 } = require("../utils/middleware/validWorkspace");
 const { WorkspaceChats } = require("../models/workspaceChats");
-const { convertToChatHistory } = require("../utils/helpers/chat/responses");
+const { convertToChatHistory, convertToPromptHistory } = require("../utils/helpers/chat/responses");
 const { getModelTag } = require("./utils");
+const { TokenManager } = require("../utils/helpers/tiktoken");
+const { getLLMProvider } = require("../utils/helpers");
+const { Workspace } = require("../models/workspace");
 
 function workspaceThreadEndpoints(app) {
   if (!app) return;
@@ -256,6 +259,125 @@ function workspaceThreadEndpoints(app) {
         }
 
         response.sendStatus(200).end();
+      } catch (e) {
+        console.error(e.message, e);
+        response.sendStatus(500).end();
+      }
+    }
+  );
+
+  app.get(
+    "/workspace/:slug/thread/:threadSlug/context-usage",
+    [
+      validatedRequest,
+      flexUserRoleValid([ROLES.all]),
+      validWorkspaceAndThreadSlug,
+    ],
+    async (request, response) => {
+      try {
+        const user = await userFromSession(request, response);
+        const workspace = response.locals.workspace;
+        const thread = response.locals.thread;
+
+        const limit = Workspace._getContextWindow(workspace) || 4096;
+        const tokenManager = new TokenManager(workspace.chatModel);
+
+        const systemPromptTokenCount = tokenManager.countFromString(
+          workspace.openAiPrompt || Workspace.defaultPrompt || ""
+        );
+
+        const history = await WorkspaceChats.where(
+          {
+            workspaceId: workspace.id,
+            user_id: user?.id || null,
+            thread_id: thread.id,
+            api_session_id: null,
+            include: true,
+          },
+          null,
+          { id: "asc" }
+        );
+
+        const promptHistory = convertToPromptHistory(history);
+        const historyTokenCount = promptHistory.length > 0 ? tokenManager.statsFrom(promptHistory) : 0;
+        const docTokenCount = await Workspace._getCurrentContextTokenCount(
+          workspace.id,
+          thread.id
+        );
+
+        const totalTokens = systemPromptTokenCount + historyTokenCount + docTokenCount;
+        const percentage = Math.min((totalTokens / limit) * 100, 100).toFixed(1);
+
+        response.status(200).json({ limit, usage: totalTokens, percentage });
+      } catch (e) {
+        console.error(e.message, e);
+        response.sendStatus(500).end();
+      }
+    }
+  );
+
+  app.post(
+    "/workspace/:slug/thread/:threadSlug/compact",
+    [
+      validatedRequest,
+      flexUserRoleValid([ROLES.all]),
+      validWorkspaceAndThreadSlug,
+    ],
+    async (request, response) => {
+      try {
+        const user = await userFromSession(request, response);
+        const workspace = response.locals.workspace;
+        const thread = response.locals.thread;
+
+        const history = await WorkspaceChats.where(
+          {
+            workspaceId: workspace.id,
+            user_id: user?.id || null,
+            thread_id: thread.id,
+            api_session_id: null,
+            include: true,
+          },
+          null,
+          { id: "asc" }
+        );
+
+        if (history.length === 0) {
+          return response.status(200).json({ success: true });
+        }
+
+        const promptHistory = convertToPromptHistory(history);
+        
+        const llmProvider = workspace.chatProvider || process.env.LLM_PROVIDER || null;
+        const llmModel = workspace.chatModel || null;
+        const llm = getLLMProvider({ provider: llmProvider, model: llmModel });
+        
+        if (!llm) {
+          throw new Error("No LLM provider available for compaction.");
+        }
+
+        const compactionPrompt = `Summarize the following conversation into a concise summary that retains all important context, entities, and facts so it can be used to remember the conversation later:\n\n${JSON.stringify(promptHistory)}`;
+
+        const messages = [{ role: "user", content: compactionPrompt }];
+        const summary = await llm.getChatCompletion(messages, { temperature: 0.2 });
+
+        // Delete all old chats in the thread
+        await WorkspaceChats.delete({
+          workspaceId: workspace.id,
+          user_id: user?.id || null,
+          thread_id: thread.id,
+        });
+
+        // Insert new summary chat
+        await WorkspaceChats.new({
+          workspaceId: workspace.id,
+          prompt: "이전 대화 내역 요약",
+          response: { text: summary, type: "text", sources: [] },
+          user: user,
+          threadId: thread.id,
+          include: true,
+        });
+
+        response.status(200).json({ success: true });
       } catch (e) {
         console.error(e.message, e);
         response.sendStatus(500).end();

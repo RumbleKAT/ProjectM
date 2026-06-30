@@ -209,6 +209,30 @@ const WorkspaceThread = {
         return false;
       });
   },
+  contextUsage: async function (workspaceSlug, threadSlug) {
+    if (!workspaceSlug) return { limit: 4096, usage: 0, percentage: 0 };
+    const url = threadSlug
+      ? `${API_BASE}/workspace/${workspaceSlug}/thread/${threadSlug}/context-usage`
+      : `${API_BASE}/workspace/${workspaceSlug}/context-usage`;
+    return await fetch(url, {
+      method: "GET",
+      headers: baseHeaders(),
+    })
+      .then((res) => res.json())
+      .catch(() => ({ limit: 4096, usage: 0, percentage: 0 }));
+  },
+  compact: async function (workspaceSlug, threadSlug) {
+    if (!workspaceSlug) return { success: false };
+    const url = threadSlug
+      ? `${API_BASE}/workspace/${workspaceSlug}/thread/${threadSlug}/compact`
+      : `${API_BASE}/workspace/${workspaceSlug}/compact`;
+    return await fetch(url, {
+      method: "POST",
+      headers: baseHeaders(),
+    })
+      .then((res) => res.json())
+      .catch((e) => ({ success: false, error: e.message }));
+  },
 };
 
 export default WorkspaceThread;

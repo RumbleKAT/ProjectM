@@ -2,7 +2,11 @@ import React from "react";
 import ModalWrapper from "@/components/ModalWrapper";
 import { X, Warning } from "@phosphor-icons/react";
 
-export default function NavigationConfirmModal({ isOpen, onConfirm, onCancel }) {
+export default function NavigationConfirmModal({
+  isOpen,
+  onConfirm,
+  onCancel,
+}) {
   if (!isOpen) return null;
 
   return (
@@ -22,8 +26,8 @@ export default function NavigationConfirmModal({ isOpen, onConfirm, onCancel }) 
         </div>
         <div className="p-6 text-slate-300 text-sm">
           <p className="mb-2">
-            현재 대화가 진행 중입니다. 페이지를 벗어나면 생성 중인 답변이
-            중단될 수 있습니다.
+            현재 대화가 진행 중입니다. 페이지를 벗어나면 생성 중인 답변이 중단될
+            수 있습니다.
           </p>
           <p>정말로 이동하시겠습니까?</p>
         </div>

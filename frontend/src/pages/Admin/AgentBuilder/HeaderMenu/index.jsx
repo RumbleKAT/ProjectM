@@ -11,8 +11,6 @@ export default function HeaderMenu({
   onNewFlow,
   onSaveFlow,
   onPublishFlow,
-  editorMode = "visual",
-  onToggleMode,
 }) {
   const { flowId = null } = useParams();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -117,22 +115,6 @@ export default function HeaderMenu({
 
         <div className="flex flex-col gap-y-1 items-end">
           <div className="flex items-center gap-x-[15px]">
-            {onToggleMode && (
-              <div className="flex items-center bg-theme-settings-input-bg border border-white/10 rounded-lg p-1 mr-2">
-                <button
-                  onClick={() => onToggleMode("visual")}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${editorMode === "visual" ? "bg-theme-bg-secondary text-theme-text-primary shadow" : "text-theme-text-secondary hover:text-theme-text-primary"}`}
-                >
-                  Visual
-                </button>
-                <button
-                  onClick={() => onToggleMode("code")}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${editorMode === "code" ? "bg-theme-bg-secondary text-theme-text-primary shadow" : "text-theme-text-secondary hover:text-theme-text-primary"}`}
-                >
-                  Code
-                </button>
-              </div>
-            )}
             <button
               onClick={onNewFlow}
               className="flex items-center gap-x-2 text-theme-text-primary text-sm font-medium px-3 py-2 rounded-lg border border-white bg-theme-settings-input-bg hover:bg-theme-action-menu-bg transition-colors duration-300"

@@ -5,3 +5,6 @@
 	path = embed
 	url = https://github.com/Mintplex-Labs/anythingllm-embed.git
 	branch = main
+[submodule "agy-openai-proxy"]
+	path = agy-openai-proxy
+	url = https://github.com/RumbleKAT/OpenProxy.git

@@ -37,10 +37,10 @@ class GeminiLLM {
       "gemini-2.0-flash-lite";
 
     const isExperimental = this.isExperimentalModel(this.model);
-    const basePath = process.env.GEMINI_API_BASE_PATH || "http://localhost:8000/v1";
     this.openai = new OpenAIApi({
       apiKey: process.env.GEMINI_API_KEY,
-      baseURL: basePath,
+      // Even models that are v1 in gemini API can be used with v1beta/openai/ endpoint and nobody knows why.
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
     });
 
     this.limits = {
@@ -171,60 +171,6 @@ class GeminiLLM {
    */
   static async fetchModels(apiKey, limit = 1_000, pageToken = null) {
     if (!apiKey) return [];
-
-    const fallbackModels = [
-      { id: "agy-agent", name: "agy-agent (Antigravity)", contextWindow: 16384, experimental: false },
-      { id: "gemini-2.0-pro-exp", name: "gemini-2.0-pro-exp", contextWindow: 32768, experimental: true },
-      { id: "gemini-2.0-flash", name: "gemini-2.0-flash", contextWindow: 32768, experimental: false },
-      { id: "gemini-1.5-pro", name: "gemini-1.5-pro", contextWindow: 32768, experimental: false },
-      { id: "gemini-1.5-flash", name: "gemini-1.5-flash", contextWindow: 32768, experimental: false }
-    ];
-
-    const writeCache = (modelsList) => {
-      try {
-        if (!fs.existsSync(cacheFolder))
-          fs.mkdirSync(cacheFolder, { recursive: true });
-        fs.writeFileSync(
-          path.resolve(cacheFolder, "models.json"),
-          JSON.stringify(modelsList)
-        );
-        fs.writeFileSync(
-          path.resolve(cacheFolder, ".cached_at"),
-          new Date().getTime().toString()
-        );
-      } catch (err) {
-        console.error("GeminiLLM:writeCache failed", err.message);
-      }
-    };
-
-    // Check if we need to query from a local proxy
-    const basePath = process.env.GEMINI_API_BASE_PATH || "http://localhost:8000/v1";
-    if (basePath.includes("localhost") || basePath.includes("127.0.0.1") || basePath.includes("8000")) {
-      try {
-        const response = await fetch(`${basePath.replace(/\/$/, "")}/models`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" }
-        });
-        const data = await response.json();
-        if (data.data) {
-          const proxyModels = data.data.map(model => ({
-            id: model.id,
-            name: model.id,
-            contextWindow: 16384,
-            experimental: false
-          }));
-          writeCache(proxyModels);
-          return proxyModels;
-        }
-      } catch (e) {
-        console.error(`GeminiLLM:fetchModels from proxy failed:`, e.message);
-        writeCache(fallbackModels);
-        return fallbackModels;
-      }
-      writeCache(fallbackModels);
-      return fallbackModels;
-    }
-
     if (fs.existsSync(cacheFolder) && !this.cacheIsStale()) {
       console.log(
         `\x1b[32m[GeminiLLM]\x1b[0m Using cached models API response.`

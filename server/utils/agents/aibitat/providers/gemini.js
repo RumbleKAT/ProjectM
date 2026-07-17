@@ -16,8 +16,9 @@ class GeminiProvider extends Provider {
     super();
     this.providerTag = "gemini";
     this.className = "GeminiProvider";
+    const basePath = process.env.GEMINI_API_BASE_PATH || "http://localhost:8000/v1";
     const client = new OpenAI({
-      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      baseURL: basePath,
       apiKey: process.env.GEMINI_API_KEY,
       fetch: async (url, init) => {
         const res = await globalThis.fetch(url, init);

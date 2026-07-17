@@ -11,6 +11,7 @@ import HeaderMenu from "./HeaderMenu";
 import paths from "@/utils/paths";
 import PublishEntityModal from "@/components/CommunityHub/PublishEntityModal";
 import { AvailableVariablesProvider } from "./useAvailableVariables";
+import JsonEditor from "./JsonEditor";
 
 const DEFAULT_BLOCKS = [
   {
@@ -53,6 +54,11 @@ export default function AgentBuilder() {
   const nameRef = useRef(null);
   const descriptionRef = useRef(null);
   const [showPublishModal, setShowPublishModal] = useState(false);
+
+  // Editor State
+  const [editorMode, setEditorMode] = useState("visual");
+  const [jsonContent, setJsonContent] = useState("");
+  const [jsonError, setJsonError] = useState(null);
 
   useEffect(() => {
     loadAvailableFlows();
@@ -160,56 +166,83 @@ export default function AgentBuilder() {
   };
 
   const saveFlow = async () => {
-    const flowInfoBlock = blocks.find(
-      (block) => block.type === BLOCK_TYPES.FLOW_INFO
-    );
-    const name = flowInfoBlock?.config?.name;
-    const description = flowInfoBlock?.config?.description;
+    let name, description, flowConfig;
 
-    if (!name?.trim() || !description?.trim()) {
-      // Make sure the flow info block is expanded first
-      if (!flowInfoBlock.isExpanded) {
-        setBlocks(
-          blocks.map((block) =>
-            block.type === BLOCK_TYPES.FLOW_INFO
-              ? { ...block, isExpanded: true }
-              : block
-          )
-        );
-        // Small delay to allow expansion animation to complete
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+    if (editorMode === "code") {
+      try {
+        const parsed = JSON.parse(jsonContent);
+        name = parsed.name;
+        description = parsed.description;
 
-      if (!name?.trim()) {
-        nameRef.current?.focus();
-      } else if (!description?.trim()) {
-        descriptionRef.current?.focus();
-      }
-      showToast(
-        "Please provide both a name and description for your flow",
-        "error",
-        {
-          clear: true,
+        if (!name?.trim() || !description?.trim()) {
+          showToast(
+            "Please provide both a name and description for your flow in the JSON",
+            "error",
+            { clear: true }
+          );
+          return;
         }
-      );
-      return;
-    }
 
-    const flowConfig = {
-      name,
-      description,
-      active,
-      steps: blocks
-        .filter(
-          (block) =>
-            block.type !== BLOCK_TYPES.FINISH &&
-            block.type !== BLOCK_TYPES.FLOW_INFO
-        )
-        .map((block) => ({
-          type: block.type,
-          config: block.config,
-        })),
-    };
+        flowConfig = parsed;
+      } catch (err) {
+        setJsonError(err.message);
+        showToast("Invalid JSON. Please fix errors before saving.", "error", {
+          clear: true,
+        });
+        return;
+      }
+    } else {
+      const flowInfoBlock = blocks.find(
+        (block) => block.type === BLOCK_TYPES.FLOW_INFO
+      );
+      name = flowInfoBlock?.config?.name;
+      description = flowInfoBlock?.config?.description;
+
+      if (!name?.trim() || !description?.trim()) {
+        // Make sure the flow info block is expanded first
+        if (!flowInfoBlock.isExpanded) {
+          setBlocks(
+            blocks.map((block) =>
+              block.type === BLOCK_TYPES.FLOW_INFO
+                ? { ...block, isExpanded: true }
+                : block
+            )
+          );
+          // Small delay to allow expansion animation to complete
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        if (!name?.trim()) {
+          nameRef.current?.focus();
+        } else if (!description?.trim()) {
+          descriptionRef.current?.focus();
+        }
+        showToast(
+          "Please provide both a name and description for your flow",
+          "error",
+          {
+            clear: true,
+          }
+        );
+        return;
+      }
+
+      flowConfig = {
+        name,
+        description,
+        active,
+        steps: blocks
+          .filter(
+            (block) =>
+              block.type !== BLOCK_TYPES.FINISH &&
+              block.type !== BLOCK_TYPES.FLOW_INFO
+          )
+          .map((block) => ({
+            type: block.type,
+            config: block.config,
+          })),
+      };
+    }
 
     try {
       const { success, error, flow } = await AgentFlows.saveFlow(
@@ -222,6 +255,9 @@ export default function AgentBuilder() {
       setCurrentFlowUuid(flow.uuid);
       showToast("Agent flow saved successfully!", "success", { clear: true });
       await loadAvailableFlows();
+
+      // If saved in code mode, we should also update visual blocks
+      // just in case they switch back, or just let the toggleMode handle it.
     } catch (error) {
       console.error("Save error details:", error);
       showToast(`Failed to save agent flow. ${error.message}`, "error", {
@@ -307,6 +343,79 @@ export default function AgentBuilder() {
     setBlocks(newBlocks);
   };
 
+  const handleToggleMode = (mode) => {
+    if (mode === "code" && editorMode !== "code") {
+      const flowInfoBlock = blocks.find(
+        (block) => block.type === BLOCK_TYPES.FLOW_INFO
+      );
+      const name = flowInfoBlock?.config?.name || "";
+      const description = flowInfoBlock?.config?.description || "";
+
+      const flowConfig = {
+        name,
+        description,
+        active,
+        steps: blocks
+          .filter(
+            (block) =>
+              block.type !== BLOCK_TYPES.FINISH &&
+              block.type !== BLOCK_TYPES.FLOW_INFO
+          )
+          .map((block) => ({
+            type: block.type,
+            config: block.config,
+          })),
+      };
+
+      setJsonContent(JSON.stringify(flowConfig, null, 2));
+      setJsonError(null);
+      setEditorMode("code");
+    } else if (mode === "visual" && editorMode !== "visual") {
+      try {
+        const parsed = JSON.parse(jsonContent);
+
+        // Construct visual blocks back
+        const flowBlocks = [
+          {
+            id: "flow_info",
+            type: BLOCK_TYPES.FLOW_INFO,
+            config: {
+              name: parsed.name || "",
+              description: parsed.description || "",
+            },
+            isExpanded: true,
+          },
+          ...(parsed.steps || []).map((step, index) => ({
+            id: index === 0 ? "start" : `block_${index}`,
+            type: step.type,
+            config: step.config,
+            isExpanded: true,
+          })),
+        ];
+
+        // Add finish block if not present
+        if (flowBlocks[flowBlocks.length - 1]?.type !== BLOCK_TYPES.FINISH) {
+          flowBlocks.push({
+            id: "finish",
+            type: BLOCK_TYPES.FINISH,
+            config: {},
+            isExpanded: false,
+          });
+        }
+
+        setAgentName(parsed.name || "");
+        setAgentDescription(parsed.description || "");
+        setActive(parsed.active ?? true);
+        setBlocks(flowBlocks);
+        setJsonError(null);
+        setEditorMode("visual");
+      } catch (err) {
+        setJsonError(err.message);
+        return; // Don't switch if JSON is invalid
+      }
+    }
+  };
+
   const handlePublishFlow = () => {
     setShowPublishModal(true);
   };
@@ -351,28 +460,48 @@ export default function AgentBuilder() {
           onNewFlow={clearFlow}
           onSaveFlow={saveFlow}
           onPublishFlow={handlePublishFlow}
+          editorMode={editorMode}
+          onToggleMode={handleToggleMode}
         />
         <div className="flex-1 min-h-0 p-6 overflow-y-auto">
           <div
             className={`max-w-xl mx-auto mt-14 ${showBlockMenu ? "pb-52" : ""}`}
           >
-            <BlockList
-              blocks={blocks}
-              updateBlockConfig={updateBlockConfig}
-              removeBlock={removeBlock}
-              toggleBlockExpansion={toggleBlockExpansion}
-              renderVariableSelect={renderVariableSelect}
-              onDeleteVariable={deleteVariable}
-              moveBlock={moveBlock}
-              refs={{ nameRef, descriptionRef }}
-            />
+            {editorMode === "visual" ? (
+              <>
+                <BlockList
+                  blocks={blocks}
+                  updateBlockConfig={updateBlockConfig}
+                  removeBlock={removeBlock}
+                  toggleBlockExpansion={toggleBlockExpansion}
+                  renderVariableSelect={renderVariableSelect}
+                  onDeleteVariable={deleteVariable}
+                  moveBlock={moveBlock}
+                  refs={{ nameRef, descriptionRef }}
+                />
 
-            <AddBlockMenu
-              blocks={blocks}
-              showBlockMenu={showBlockMenu}
-              setShowBlockMenu={setShowBlockMenu}
-              addBlock={addBlock}
-            />
+                <AddBlockMenu
+                  blocks={blocks}
+                  showBlockMenu={showBlockMenu}
+                  setShowBlockMenu={setShowBlockMenu}
+                  addBlock={addBlock}
+                />
+              </>
+            ) : (
+              <JsonEditor
+                value={jsonContent}
+                onChange={(newVal) => {
+                  setJsonContent(newVal);
+                  try {
+                    JSON.parse(newVal);
+                    setJsonError(null);
+                  } catch (e) {
+                    setJsonError(e.message);
+                  }
+                }}
+                error={jsonError}
+              />
+            )}
           </div>
         </div>
         <Tooltip

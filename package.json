@@ -26,7 +26,7 @@
     "dev:server": "cd server && yarn dev",
     "dev:collector": "cd collector && yarn dev",
     "dev:frontend": "cd frontend && yarn dev",
-    "dev:agy": "cd agy-openai-proxy && ANTIGRAVITY_HARNESS_PATH=/Users/songmyeongjin/.local/bin/agy ./venv/bin/python proxy.py",
+    "dev:agy": "cd agy-openai-proxy && ./venv/bin/python proxy.py",
     "dev": "npx concurrently \"yarn dev:server\" \"yarn dev:frontend\" \"yarn dev:collector\" \"yarn dev:agy\"",
     "dev:all": "yarn dev",
     "infra:start": "docker compose -f docker/docker-compose.yml up -d prometheus grafana",
